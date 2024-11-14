@@ -1,0 +1,14 @@
+{
+  "name": "artifacts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "run": "bun run src/index.ts"
+  },
+  "author": "David Dunnings",
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  }
+}
