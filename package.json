@@ -5,7 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "run": "bun run src/index.ts"
+    "run": "bun run src/index.ts",
+    "docker:build": "docker build -t artifacts .",
+    "docker:run": "docker run -d artifacts"
   },
   "author": "David Dunnings",
   "dependencies": {
