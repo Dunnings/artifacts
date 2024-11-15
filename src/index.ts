@@ -113,12 +113,12 @@ async function killCows() {
   await doActionAndWait(ACTION.Rest);
 }
 
-async function unequipWeapon() {
-  await doActionAndWait(ACTION.Unequip, { slot: 'weapon' });
+async function unequip(slot: string) {
+  await doActionAndWait(ACTION.Unequip, { slot });
 }
 
-async function equip(slot: string, itemCode: string) {
-  await doActionAndWait(ACTION.Equip, { slot: slot, code: itemCode });
+async function equip(slot: string, code: string) {
+  await doActionAndWait(ACTION.Equip, { slot, code });
 }
 
 async function rest() {
