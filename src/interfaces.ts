@@ -1,3 +1,5 @@
+import { SKILL } from './enums';
+
 export interface ICooldown {
   total_seconds: number;
   remaining_seconds: number;
@@ -111,4 +113,41 @@ export interface IErrorData {
 
 export interface IErrorResponse {
   error: IErrorData;
+}
+
+export interface IItemEffect {
+  name: string; // Effect name
+  value: number; // Effect value
+}
+
+export interface ISimpleItem {
+  code: string; // Item Code
+  quantity: number; // Item quantity
+}
+
+export interface ICraft {
+  skill: keyof typeof SKILL; // Skill required to craft the item
+  level: number; // The skill level required to craft the item
+  items: ISimpleItem[]; // List of items required to craft the item
+  quantity: number; // Quantity of items crafted
+}
+
+export interface IItem {
+  name: string; // Item name
+  code: string; // Item code. This is the item's unique identifier (ID)
+  level: number; // Item level
+  type: string; // Item type
+  subtype: string; // Item subtype
+  description: string; // Item description
+  effects: IItemEffect[]; // List of object effects. For equipment, it will include item stats
+  craft: ICraft; // Craft information
+  tradeable: boolean; // Item tradeable status. A non-tradeable item cannot be exchanged or sold
+}
+
+export interface IItemsAPIResponse {
+  data: IItem[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
 }

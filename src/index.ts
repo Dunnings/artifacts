@@ -1,25 +1,11 @@
-import { ACTION, EQUIPSLOT, ITEMCODE, LOCATION } from './enums';
-import { IApiActionResponse, IApiCharacterResponse, ICharacter, IErrorResponse } from './interfaces';
+import { ACTION, ITEMCODE, LOCATION } from './enums';
+import { IApiActionResponse, IApiCharacterResponse, ICharacter, IErrorResponse, IItem, IItemsAPIResponse } from './interfaces';
 import { catchPromise, log, time, warn } from './util';
-import { actionCall, characterCall } from './network';
+import { actionCall, characterCall, itemCall } from './network';
 
 let characterData: ICharacter;
 let cooldownExpiration: string;
-
-function parseAPIResponse(response: IApiActionResponse | IApiCharacterResponse | IErrorResponse) {
-  if (!response) return;
-  if ((response as IErrorResponse).error) {
-    log('Error response from API:');
-    console.error((response as IErrorResponse).error.message);
-    return;
-  } else if ((response as IApiActionResponse).data.character) {
-    characterData = (response as IApiActionResponse).data.character;
-    cooldownExpiration = characterData.cooldown_expiration;
-  } else if ((response as IApiCharacterResponse).data) {
-    characterData = (response as IApiCharacterResponse).data;
-    cooldownExpiration = characterData.cooldown_expiration;
-  }
-}
+let itemData: IItem[];
 
 async function waitForCooldown() {
   if (!cooldownExpiration) return;
@@ -32,16 +18,35 @@ async function waitForCooldown() {
 }
 
 async function getCharacter() {
-  const [response, error] = await catchPromise(characterCall());
+  const [response, error] = await catchPromise<IApiCharacterResponse>(characterCall());
   if (error) return;
-  parseAPIResponse(response);
+  characterData = response.data;
+  cooldownExpiration = characterData.cooldown_expiration;
+}
+
+async function getItems() {
+  const items: IItem[] = [];
+  let page = 1;
+  let pages: number;
+  do {
+    const [response, error] = await catchPromise<IItemsAPIResponse>(itemCall(page));
+    if (error) return;
+    response.data.forEach(element => {
+      items.push(element);
+    });
+    pages = response.pages;
+    page = response.page + 1;
+  } while (page !== pages);
+  itemData = items;
+  log(`Got ${itemData.length} items`);
 }
 
 async function doAction(action: string, args?: any) {
-  const [response, error] = await catchPromise(actionCall(action, args));
+  const [response, error] = await catchPromise<IApiActionResponse>(actionCall(action, args));
   if (error) return;
+  characterData = response.data.character;
+  cooldownExpiration = characterData.cooldown_expiration;
   log(`${action}`);
-  parseAPIResponse(response);
 }
 
 async function doActionAndWait(action: string, data?: any) {
@@ -81,6 +86,11 @@ async function depositAllItems() {
 
 async function gatherAshWood() {
   await doActionAndWait(ACTION.Move, LOCATION.AshTree);
+  await doActionAndWait(ACTION.Gather);
+}
+
+async function gatherCopper() {
+  await doActionAndWait(ACTION.Move, LOCATION.Copper);
   await doActionAndWait(ACTION.Gather);
 }
 
@@ -126,9 +136,11 @@ async function rest() {
 }
 
 await getCharacter();
+await getItems();
+await rest();
 await waitForCooldown();
 while (true) {
-  await killChickens();
+  await gatherCopper();
   if (inventorySpaceRemaining() < 5) {
     await depositAllItems();
   }

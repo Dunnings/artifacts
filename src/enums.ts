@@ -13,6 +13,7 @@ export const ACTION = {
 export const LOCATION = {
   AshTree: { x: -1, y: 0 },
   Bank: { x: 4, y: 1 },
+  Copper: { x: 2, y: 0 },
   WeaponCraftingStation: { x: 2, y: 1 },
   GearCraftingStation: { x: 3, y: 1 },
   WoodCuttingStation: { x: -2, y: -3 },
@@ -28,7 +29,33 @@ export const ITEMCODE = {
   WoodenShield: 'wooden_shield',
 };
 
+export const ITEMTYPE = {
+  Utility: 'utility',
+  BodyArmor: 'body_armor',
+  Weapon: 'weapon',
+  Resource: 'resource',
+  LegArmor: 'leg_armor',
+  Helmet: 'helmet',
+  Boots: 'boots',
+  Shield: 'shield',
+  Amulet: 'amulet',
+  Ring: 'ring',
+  Artifact: 'artifact',
+  Currency: 'currency',
+  Consumable: 'consumable',
+};
+
 export const EQUIPSLOT = {
   Weapon: 'weapon',
   Shield: 'shield',
+};
+
+export const SKILL = {
+  WeaponCrafting: 'weaponcrafting',
+  GearCrafting: 'gearcrafting',
+  JewelryCrafting: 'jewelrycrafting',
+  Cooking: 'cooking',
+  Woodcutting: 'woodcutting',
+  Mining: 'mining',
+  Alchemy: 'alchemy',
 };

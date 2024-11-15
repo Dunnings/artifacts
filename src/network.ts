@@ -32,3 +32,8 @@ export function characterCall() {
   const options = createOptions(undefined, 'GET');
   return fetch(`${server}/characters/${character}`, options);
 }
+
+export function itemCall(page = 1) {
+  const options = createOptions(undefined, 'GET');
+  return fetch(`${server}/items?page=${page}`, options);
+}

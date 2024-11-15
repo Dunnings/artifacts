@@ -1,7 +1,7 @@
-export async function catchPromise(promise: Promise<any>): Promise<[any, any]> {
+export async function catchPromise<T>(promise: Promise<any>): Promise<[T, any]> {
   try {
     const response = await promise;
-    return [await response.json(), null];
+    return [(await response.json()) as T, null];
   } catch (error) {
     console.error(error);
     return [null, error];
