@@ -13,5 +13,9 @@ export function log(text: string) {
 }
 
 export function warn(text: string) {
-  console.log(`\x1b[31m⚠️  ${text}\x1b[0m`);
+  console.log(`\x1b[31m⚠️ ${text}\x1b[0m`);
+}
+
+export function time(text: string) {
+  console.log(`\x1b[35m⏱️ ${text}\x1b[0m`);
 }

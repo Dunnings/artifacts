@@ -1,6 +1,6 @@
 import { ACTION, EQUIPSLOT, ITEMCODE, LOCATION } from './enums';
 import { IApiActionResponse, IApiCharacterResponse, ICharacter, IErrorResponse } from './interfaces';
-import { catchPromise, log, warn } from './util';
+import { catchPromise, log, time, warn } from './util';
 import { actionCall, characterCall } from './network';
 
 let characterData: ICharacter;
@@ -27,7 +27,7 @@ async function waitForCooldown() {
   if (cooldown <= 0) return;
   const seconds = Math.floor((cooldown / 1000) % 60);
   const minutes = Math.floor((cooldown / (1000 * 60)) % 60);
-  console.log(`\x1b[35m⏱️  ${minutes}m ${seconds}s\x1b[0m`);
+  time(`${minutes}m ${seconds}s`);
   return new Promise(resolve => setTimeout(resolve, cooldown));
 }
 
