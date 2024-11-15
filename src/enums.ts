@@ -1,3 +1,5 @@
+import { ILocation } from './interfaces';
+
 export enum Action {
   fight = 'fight',
   move = 'move',
@@ -10,19 +12,23 @@ export enum Action {
   withdraw = 'bank/withdraw',
 }
 
-export const Location = {
-  AshTree: { x: -1, y: 0 },
-  Bank: { x: 4, y: 1 },
-  Copper: { x: 2, y: 0 },
-  WeaponCraftingStation: { x: 2, y: 1 },
-  GearCraftingStation: { x: 3, y: 1 },
-  WoodCuttingStation: { x: -2, y: -3 },
-  Chickens: { x: 0, y: 1 },
-  Cows: { x: 0, y: 2 },
-  Wolves: { x: -2, y: 1 },
-  Forge: { x: 1, y: 5 },
-  Iron: { x: 1, y: 7 },
-} as const;
+export enum Resource {
+  birch_tree = 'birch_tree',
+  salmon_fishing_spot = 'salmon_fishing_spot',
+  gold_rocks = 'gold_rocks',
+  ash_tree = 'ash_tree',
+  copper_rocks = 'copper_rocks',
+  sunflower = 'sunflower',
+  gudgeon_fishing_spot = 'gudgeon_fishing_spot',
+  shrimp_fishing_spot = 'shrimp_fishing_spot',
+  coal_rocks = 'coal_rocks',
+  spruce_tree = 'spruce_tree',
+  dead_tree = 'dead_tree',
+  iron_rocks = 'iron_rocks',
+  glowstem = 'glowstem',
+  maple_tree = 'maple_tree',
+  bank = 'bank',
+}
 
 export enum ItemCode {
   adventurer_boots = 'adventurer_boots',

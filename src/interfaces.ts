@@ -1,4 +1,4 @@
-import { ItemCode, Skill } from './enums';
+import { ItemCode, ItemType, Skill } from './enums';
 
 export interface ICooldown {
   total_seconds: number;
@@ -10,11 +10,37 @@ export interface ICooldown {
 
 export interface IInventoryItem {
   slot: number;
-  code: string;
+  code: ItemCode;
   quantity: number;
 }
 
-export interface ICharacter {
+export interface ILocation {
+  x: number;
+  y: number;
+}
+
+export interface IMapContent {
+  type: string; // Type of the content
+  code: string; // Code of the content
+}
+
+export interface IMap {
+  name: string; // Name of the map
+  skin: string; // Map skin
+  x: number; // Map X coordinate
+  y: number; // Map Y coordinate
+  content: IMapContent; // Content of the map
+}
+
+export interface IMapAPIResponse {
+  data: Array<IMap>; // Array of maps
+  total: number; // Total number of items
+  page: number; // Current page
+  size: number; // Number of items per page
+  pages: number; // Total number of pages
+}
+
+export interface ICharacterData {
   name: string;
   account: string;
   skin: string;
@@ -92,18 +118,18 @@ export interface ICharacter {
   inventory: IInventoryItem[];
 }
 
-export interface IData {
-  character: ICharacter;
+export interface IActionData {
+  character: ICharacterData;
   cooldown: ICooldown;
   hp_restored?: number;
 }
 
 export interface IApiActionResponse {
-  data: IData;
+  data: IActionData;
 }
 
 export interface IApiCharacterResponse {
-  data: ICharacter;
+  data: ICharacterData;
 }
 
 export interface IErrorData {
@@ -134,9 +160,9 @@ export interface ICraft {
 
 export interface IItem {
   name: string; // Item name
-  code: string; // Item code. This is the item's unique identifier (ID)
+  code: ItemCode; // Item code. This is the item's unique identifier (ID)
   level: number; // Item level
-  type: string; // Item type
+  type: ItemType; // Item type
   subtype: string; // Item subtype
   description: string; // Item description
   effects: IItemEffect[]; // List of object effects. For equipment, it will include item stats

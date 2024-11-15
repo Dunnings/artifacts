@@ -42,3 +42,8 @@ export function bankItemsCall(page = 1) {
   const options = createOptions(undefined, 'GET');
   return fetch(`${server}/my/bank/items?page=${page}&size=100`, options);
 }
+
+export function mapCall(page = 1) {
+  const options = createOptions(undefined, 'GET');
+  return fetch(`${server}/maps?page=${page}&size=100`, options);
+}
