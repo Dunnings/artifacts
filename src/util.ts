@@ -11,3 +11,7 @@ export async function catchPromise(promise: Promise<any>): Promise<[any, any]> {
 export function log(text: string) {
   console.log(`\x1b[35m🤖 ${text}\x1b[0m`);
 }
+
+export function warn(text: string) {
+  console.log(`\x1b[31m⚠️  ${text}\x1b[0m`);
+}
