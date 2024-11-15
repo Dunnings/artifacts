@@ -37,3 +37,8 @@ export function itemCall(page = 1) {
   const options = createOptions(undefined, 'GET');
   return fetch(`${server}/items?page=${page}`, options);
 }
+
+export function bankItemsCall(page = 1) {
+  const options = createOptions(undefined, 'GET');
+  return fetch(`${server}/my/bank/items?page=${page}&size=100`, options);
+}

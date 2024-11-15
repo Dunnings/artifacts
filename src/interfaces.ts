@@ -1,4 +1,4 @@
-import { SKILL } from './enums';
+import { ItemCode, Skill } from './enums';
 
 export interface ICooldown {
   total_seconds: number;
@@ -121,12 +121,12 @@ export interface IItemEffect {
 }
 
 export interface ISimpleItem {
-  code: string; // Item Code
+  code: ItemCode; // Item Code
   quantity: number; // Item quantity
 }
 
 export interface ICraft {
-  skill: keyof typeof SKILL; // Skill required to craft the item
+  skill: Skill; // Skill required to craft the item
   level: number; // The skill level required to craft the item
   items: ISimpleItem[]; // List of items required to craft the item
   quantity: number; // Quantity of items crafted
