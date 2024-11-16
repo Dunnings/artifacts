@@ -1,5 +1,3 @@
-import { ILocation } from './interfaces';
-
 export enum Action {
   fight = 'fight',
   move = 'move',
@@ -28,6 +26,7 @@ export enum Resource {
   glowstem = 'glowstem',
   maple_tree = 'maple_tree',
   bank = 'bank',
+  mining = 'mining',
 }
 
 export enum ItemCode {

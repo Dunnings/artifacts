@@ -14,6 +14,11 @@ export interface IInventoryItem {
   quantity: number;
 }
 
+export interface IBankItem {
+  code: ItemCode;
+  quantity: number;
+}
+
 export interface ILocation {
   x: number;
   y: number;
@@ -172,6 +177,14 @@ export interface IItem {
 
 export interface IItemsAPIResponse {
   data: IItem[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface IBankAPIResponse {
+  data: IInventoryItem[];
   total: number;
   page: number;
   size: number;
