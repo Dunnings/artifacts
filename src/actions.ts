@@ -123,12 +123,12 @@ export async function mineIron(): Promise<void> {
  * Mine iron ore and forge iron bars
  */
 export async function mineAndForgeIron(): Promise<void> {
-  // If we don't have enough iron ore to make 1 iron bar, mine enough to make 100
+  // While we don't have enough iron ore to make 100 iron bars, mine iron ore
   while (!characterHasCraftingIngredients(ItemCode.iron, 100, true)) {
     await mineIron();
   }
 
-  // While we have enough ingredients to make 1 iron bar, make it
+  // While we have enough ingredients to make 1 iron bar, make them
   while (characterHasCraftingIngredients(ItemCode.iron, 1, true)) {
     await forgeIron();
   }
