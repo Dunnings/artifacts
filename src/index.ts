@@ -78,7 +78,9 @@ async function getMaps(): Promise<Array<IMap>> {
   await waitForCooldown();
 
   // Main loop
-  await gatherOrCraft(ItemCode.copper, 1);
+  while (true) {
+    await gatherOrCraft(ItemCode.copper, 100);
+  }
 
   // Log the difference in items
   Model.character = await getCharacter();
