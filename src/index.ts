@@ -5,7 +5,6 @@ import { gatherOrCraft, waitForCooldown } from './actions';
 import { Model } from './model';
 import { findCraftableItems, logQuantityDifferenceInItems } from './helper';
 import { ItemCode } from './enums';
-import * as fs from 'fs';
 
 async function getCharacter(): Promise<ICharacterData> {
   const [response, error] = await catchPromise<IApiCharacterResponse>(characterCall());
@@ -78,9 +77,7 @@ async function getMaps(): Promise<Array<IMap>> {
   await waitForCooldown();
 
   // Main loop
-  while (true) {
-    await gatherOrCraft(ItemCode.copper, 100);
-  }
+  await gatherOrCraft(ItemCode.cooked_chicken, 1);
 
   // Log the difference in items
   Model.character = await getCharacter();

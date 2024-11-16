@@ -141,3 +141,21 @@ export function logQuantityDifferenceInItems(before: (IInventoryItem | IBankItem
     }
   });
 }
+
+export function createShoppingList(itemCode: ItemCode, quantity: number = 1, shoppingList?: Record<ItemCode, number>): Record<ItemCode, number> {
+  const isTopLevel = shoppingList === undefined;
+  if (isTopLevel) shoppingList = {} as Record<ItemCode, number>;
+
+  const craftingSpec = getCraftingRecipe(itemCode);
+  if (!craftingSpec || (!isTopLevel && characterHasItem(itemCode, quantity, true))) {
+    if (!shoppingList[itemCode]) shoppingList[itemCode] = 0;
+    shoppingList[itemCode] = shoppingList[itemCode] + quantity;
+    return shoppingList;
+  }
+
+  for (const craftingItem of craftingSpec.items) {
+    shoppingList = createShoppingList(craftingItem.code, craftingItem.quantity * quantity, shoppingList);
+  }
+
+  return shoppingList;
+}

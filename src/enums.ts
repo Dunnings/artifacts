@@ -27,6 +27,8 @@ export enum Resource {
   maple_tree = 'maple_tree',
   bank = 'bank',
   mining = 'mining',
+  jewelrycrafting = 'jewelrycrafting',
+  cooking = 'cooking',
 }
 
 export enum ItemCode {
@@ -384,4 +386,6 @@ export const ItemToResourceMap = new Map([
 export const ItemToCraftingStation = new Map([
   [ItemCode.iron, Resource.mining],
   [ItemCode.copper, Resource.mining],
+  [ItemCode.copper_ring, Resource.jewelrycrafting],
+  [ItemCode.cooked_chicken, Resource.cooking],
 ]);
