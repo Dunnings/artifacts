@@ -19,3 +19,7 @@ export function warn(text: string) {
 export function time(text: string) {
   console.log(`\x1b[35m⏱️ ${text}\x1b[0m`);
 }
+
+export function info(text: string) {
+  console.log(`\x1b[33mℹ️ ${text}\x1b[0m`);
+}

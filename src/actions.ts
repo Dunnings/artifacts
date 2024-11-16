@@ -1,9 +1,18 @@
-import { Action, EquipSlot, ItemCode, Resource } from './enums';
-import { characterAtLocation, characterHasCraftingIngredients, characterHasCraftingLevel, characterInventorySpaceRemaining, getNearestMapLocation, getCraftableQuantity } from './helper';
+import { Action, EquipSlot, ItemCode, ItemToCraftingStation, ItemToResourceMap, Resource } from './enums';
+import {
+  characterAtLocation,
+  characterHasCraftingIngredients,
+  characterHasCraftingLevel,
+  characterInventorySpaceRemaining,
+  getNearestMapLocation,
+  getCraftableQuantity,
+  getCraftingRecipe,
+  getItemCount,
+} from './helper';
 import { IApiActionResponse, ILocation } from './interfaces';
 import { Model } from './model';
 import { actionCall } from './network';
-import { catchPromise, log, time, warn } from './util';
+import { catchPromise, info, log, time, warn } from './util';
 
 export async function waitForCooldown() {
   if (!Model.cooldownExpiration) return;
@@ -19,11 +28,11 @@ export async function doAction(action: Action, args?: any): Promise<void> {
   const [response, error] = await catchPromise<IApiActionResponse>(actionCall(action, args));
   if (error) {
     warn(`Error: ${JSON.stringify(error)}`);
-    return;
+    throw error;
   }
   if (response.data === undefined) {
     warn(`Error: ${JSON.stringify(response)}`);
-    return;
+    throw error;
   }
   Model.character = response.data.character;
   log(`${action}`);
@@ -39,23 +48,6 @@ export async function depositAllItems(): Promise<void> {
     if (item.quantity === 0) continue;
     await doActionAndWait(Action.deposit, { code: item.code, quantity: item.quantity });
   }
-}
-
-export async function craft(itemCode: ItemCode, quantity = 1): Promise<void> {
-  const craftingSpec = Model.items.find(item => item.code === itemCode)?.craft;
-  if (!craftingSpec) {
-    warn(`Item ${itemCode} is not craftable`);
-    return;
-  }
-  if (!characterHasCraftingLevel(itemCode)) {
-    warn(`Skill level too low to craft ${itemCode}. Required: ${craftingSpec.level}. Current: ${Model.character[`${craftingSpec.skill}_level`]}`);
-    return;
-  }
-  if (!characterHasCraftingIngredients(itemCode, quantity)) {
-    warn(`Not enough materials to craft ${itemCode}. Missing: ${craftingSpec.items.map(item => `${item.quantity} ${item.code}`).join(', ')}`);
-    return;
-  }
-  await doActionAndWait(Action.crafting, { code: itemCode, quantity });
 }
 
 export async function equip(code: ItemCode, slot: EquipSlot) {
@@ -75,10 +67,6 @@ export async function move(location: ILocation) {
   await doActionAndWait(Action.move, location);
 }
 
-export async function gather() {
-  await doActionAndWait(Action.gathering);
-}
-
 export async function withdraw(code: ItemCode, quantity: number) {
   await move(getNearestMapLocation(Resource.bank));
   await doActionAndWait(Action.withdraw, { code, quantity });
@@ -93,43 +81,88 @@ export async function emptyInventoryIfFull() {
   await depositAllItems();
 }
 
-/**
- * Go to the nearest bank, deposit all items, withdraw as much iron ore as possible, then craft iron bars
- */
-export async function forgeIron(): Promise<void> {
-  await emptyInventoryIfFull();
-
-  // If we don't have enough to make one iron bar, withdraw as much of the ingredients as we can
-  if (!characterHasCraftingIngredients(ItemCode.iron, 1)) {
-    await move(getNearestMapLocation(Resource.bank));
-    await depositAllItems();
-    await withdraw(ItemCode.iron_ore, characterInventorySpaceRemaining());
+export async function craft(itemCode: ItemCode, quantity = 1): Promise<void> {
+  const craftingStation = ItemToCraftingStation.get(itemCode);
+  if (!craftingStation) {
+    warn(`Item ${itemCode} is not a craftable resource`);
+    return;
   }
 
-  await move(getNearestMapLocation(Resource.mining));
-  await craft(ItemCode.iron, getCraftableQuantity(ItemCode.iron));
-}
-
-/**
- * Go to the nearest iron rocks, mine iron ore
- */
-export async function mineIron(): Promise<void> {
-  await emptyInventoryIfFull();
-  await move(getNearestMapLocation(Resource.iron_rocks));
-  await gather();
-}
-
-/**
- * Mine iron ore and forge iron bars
- */
-export async function mineAndForgeIron(): Promise<void> {
-  // While we don't have enough iron ore to make 100 iron bars, mine iron ore
-  while (!characterHasCraftingIngredients(ItemCode.iron, 100, true)) {
-    await mineIron();
+  if (!characterHasCraftingIngredients(itemCode, quantity, true)) {
+    warn(`Not enough materials to craft ${itemCode} (bank + inventory)`);
+    return;
   }
 
-  // While we have enough ingredients to make 1 iron bar, make them
-  while (characterHasCraftingIngredients(ItemCode.iron, 1, true)) {
-    await forgeIron();
+  await emptyInventoryIfFull();
+
+  let amountRemainingToCraft = quantity;
+  let thisIterationCraftableQuantity: number;
+
+  const craftingSpec = getCraftingRecipe(itemCode);
+  const craftingItemQuantities = craftingSpec.items.map(item => item.quantity);
+  const totalQuantity = craftingItemQuantities.reduce((acc, val) => acc + val, 0);
+
+  while (amountRemainingToCraft > 0) {
+    if (!characterHasCraftingIngredients(itemCode, amountRemainingToCraft)) {
+      await move(getNearestMapLocation(Resource.bank));
+      await depositAllItems();
+
+      thisIterationCraftableQuantity = Math.floor(characterInventorySpaceRemaining() / totalQuantity);
+      thisIterationCraftableQuantity = Math.min(getCraftableQuantity(itemCode, true), amountRemainingToCraft);
+
+      for (const item of craftingSpec.items) {
+        await withdraw(item.code, item.quantity * thisIterationCraftableQuantity);
+      }
+    }
+
+    await move(getNearestMapLocation(craftingStation));
+    await doActionAndWait(Action.crafting, { code: itemCode, quantity: thisIterationCraftableQuantity });
+
+    amountRemainingToCraft -= thisIterationCraftableQuantity;
+  }
+}
+
+export async function gather(item: ItemCode): Promise<void> {
+  const resource = ItemToResourceMap.get(item);
+  if (!resource) {
+    warn(`Item ${item} is not a mineable resource`);
+    return;
+  }
+
+  await emptyInventoryIfFull();
+  await move(getNearestMapLocation(resource));
+  await doActionAndWait(Action.gathering);
+}
+
+export async function gatherOrCraft(itemCode: ItemCode, quantity = 1, originalItem?: ItemCode): Promise<void> {
+  if (originalItem !== undefined) {
+    info(`Gathering or crafting ${quantity}x ${itemCode} to craft ${originalItem}`);
+  }
+  if (originalItem !== undefined && getItemCount(itemCode, true) >= quantity) {
+    info(`Already have ${itemCode} x${quantity}`);
+    return;
+  }
+
+  const craftingRecipe = getCraftingRecipe(itemCode);
+
+  // pre-check ingredients
+  if (craftingRecipe && !characterHasCraftingLevel(itemCode, true)) {
+    warn(`Not enough skill to craft ${itemCode}`);
+    return;
+  }
+
+  const itemResource = ItemToResourceMap.get(itemCode);
+
+  if (itemResource) {
+    //If the item is a resource, we can gather it
+    while (getItemCount(itemCode, true) < quantity) {
+      await gather(itemCode);
+    }
+  } else {
+    // If the item is not a resource, we can't gather it, so we need to gather it's components
+    for (const ingredient of craftingRecipe.items) {
+      await gatherOrCraft(ingredient.code, ingredient.quantity * quantity, originalItem ?? itemCode);
+    }
+    await craft(itemCode, quantity);
   }
 }

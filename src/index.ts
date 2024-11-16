@@ -1,10 +1,11 @@
 import { IApiCharacterResponse, IBankAPIResponse, IBankItem, ICharacterData, IInventoryItem, IItem, IItemsAPIResponse, IMap, IMapAPIResponse } from './interfaces';
 import { catchPromise } from './util';
 import { bankItemsCall, characterCall, itemCall, mapCall } from './network';
-import { mineAndForgeIron, waitForCooldown } from './actions';
+import { gatherOrCraft, waitForCooldown } from './actions';
 import { Model } from './model';
-import { characterHasCraftingIngredients, findCraftableItems } from './helper';
+import { findCraftableItems, logQuantityDifferenceInItems } from './helper';
 import { ItemCode } from './enums';
+import * as fs from 'fs';
 
 async function getCharacter(): Promise<ICharacterData> {
   const [response, error] = await catchPromise<IApiCharacterResponse>(characterCall());
@@ -69,13 +70,19 @@ async function getMaps(): Promise<Array<IMap>> {
   Model.bankItems = await getBankItems();
   Model.character = await getCharacter();
 
+  const beforeItems: (IInventoryItem | IBankItem)[] = JSON.parse(JSON.stringify([...Model.bankItems, ...Model.inventory]));
+
   findCraftableItems(true);
 
   // Wait for any outstanding cooldowns
   await waitForCooldown();
 
   // Main loop
-  while (true) {
-    await mineAndForgeIron();
-  }
+  await gatherOrCraft(ItemCode.copper, 1);
+
+  // Log the difference in items
+  Model.character = await getCharacter();
+  Model.bankItems = await getBankItems();
+  const afterItems = [...Model.bankItems, ...Model.inventory];
+  logQuantityDifferenceInItems(beforeItems, afterItems);
 })();

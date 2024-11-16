@@ -1,15 +1,33 @@
 import { ItemCode, Resource } from './enums';
-import { IBankItem, IInventoryItem, IItem, ILocation, IMap } from './interfaces';
+import { IBankItem, ICraft, IInventoryItem, IItem, ILocation, IMap } from './interfaces';
 import { Model } from './model';
-import { log, warn } from './util';
+import { info, log, warn } from './util';
+
+export function getCraftingRecipe(itemCode: ItemCode): ICraft {
+  return Model.items.find(item => item.code === itemCode).craft;
+}
+
+export function characterHasEnoughOfItemForRecipe(itemToCraft: ItemCode, itemToGather: ItemCode, quantityToCraft = 1, includeBankInventory = false): boolean {
+  const craftingSpec = getCraftingRecipe(itemToCraft);
+  return craftingSpec.items.find(item => item.code === itemToGather).quantity * quantityToCraft <= getItemCount(itemToGather, includeBankInventory);
+}
 
 export function characterHasCraftingIngredients(itemCode: ItemCode, quantity = 1, includeBankInventory = false): boolean {
-  const craftingSpec = Model.items.find(item => item.code === itemCode)?.craft;
+  const craftingSpec = getCraftingRecipe(itemCode);
   return craftingSpec.items.every(item => characterHasItem(item.code, item.quantity * quantity, includeBankInventory));
 }
 
-export function characterHasCraftingLevel(itemCode: ItemCode): boolean {
-  const craftingSpec = Model.items.find(item => item.code === itemCode)?.craft;
+export function characterHasCraftingLevel(itemCode: ItemCode, iterative = false): boolean {
+  const craftingSpec = getCraftingRecipe(itemCode);
+
+  if (!craftingSpec) {
+    return;
+  }
+
+  if (iterative && craftingSpec?.items) {
+    return craftingSpec.items.every(item => characterHasCraftingLevel(item.code, true) !== false);
+  }
+
   return Model.character[`${craftingSpec.skill}_level`] >= craftingSpec.level;
 }
 
@@ -50,10 +68,10 @@ export function findCraftableItems(includeBankInventory = false): Array<IItem> {
       (Model.character[`${item.craft.skill}_level`] ?? 0) >= item.craft.level,
   );
   if (craftableItems.length === 0) {
-    log('No craftable items found');
+    info('No craftable items found');
     return;
   }
-  log(`Found ${craftableItems.length} craftable items: ${craftableItems.map(item => item.code).join(', ')}`);
+  info(`Found ${craftableItems.length} craftable items: ${craftableItems.map(item => item.code).join(', ')}`);
   return craftableItems;
 }
 
@@ -82,8 +100,16 @@ export function getNearestMap(resource: Resource): IMap {
   return nearestMap.map;
 }
 
-export function getCraftableQuantity(itemCode: ItemCode): number {
-  const craftingSpec = Model.items.find(item => item.code === itemCode)?.craft;
+export function getItemCount(itemCode: ItemCode, includeBankInventory = false): number {
+  const inventory: Array<IBankItem | IInventoryItem> = [...Model.inventory];
+  if (includeBankInventory && Model.bankItems) {
+    inventory.push(...Model.bankItems);
+  }
+  return inventory.reduce((acc, val) => (val.code === itemCode ? val.quantity + acc : acc), 0);
+}
+
+export function getCraftableQuantity(itemCode: ItemCode, includeBankInventory = false): number {
+  const craftingSpec = getCraftingRecipe(itemCode);
   if (!craftingSpec) {
     warn(`Item ${itemCode} is not craftable`);
     return 0;
@@ -93,8 +119,25 @@ export function getCraftableQuantity(itemCode: ItemCode): number {
     return 0;
   }
   const maxCraftable = craftingSpec.items.reduce((acc, craftingIngredient) => {
-    const quantity = Math.floor(Model.inventory.find(invItem => invItem.code === craftingIngredient.code).quantity / craftingIngredient.quantity);
+    const quantity = Math.floor(getItemCount(craftingIngredient.code, includeBankInventory) / craftingIngredient.quantity);
     return quantity < acc ? quantity : acc;
   }, Infinity);
   return maxCraftable;
+}
+
+export function logQuantityDifferenceInItems(before: (IInventoryItem | IBankItem)[], after: (IInventoryItem | IBankItem)[]): void {
+  info('Results:');
+  Model.items.forEach(item => {
+    const beforeQuantity = before.reduce((acc, val) => (val.code === item.code ? acc + val.quantity : acc), 0);
+    const afterQuantity = after.reduce((acc, val) => (val.code === item.code ? acc + val.quantity : acc), 0);
+    if (beforeQuantity !== afterQuantity) {
+      const absDiff = Math.abs(beforeQuantity - afterQuantity);
+      const changeSymbol = afterQuantity > beforeQuantity ? '+' : '-';
+      if (changeSymbol === '+') {
+        console.log(`\x1b[32m${changeSymbol}${absDiff} ${item.code}\x1b[0m`);
+      } else {
+        console.log(`\x1b[31m${changeSymbol}${absDiff} ${item.code}\x1b[0m`);
+      }
+    }
+  });
 }
