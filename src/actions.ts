@@ -132,7 +132,7 @@ export async function craft(itemCode: ItemCode, quantity = 1): Promise<void> {
 export async function gather(item: ItemCode): Promise<void> {
   const resource = ItemToResourceMap.get(item);
   if (!resource) {
-    warn(`Item ${item} is not a mineable resource`);
+    warn(`Item ${item} is not a gatherable resource`);
     return;
   }
 

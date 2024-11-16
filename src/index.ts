@@ -1,7 +1,7 @@
 import { IApiCharacterResponse, IBankAPIResponse, IBankItem, ICharacterData, IInventoryItem, IItem, IItemsAPIResponse, IMap, IMapAPIResponse } from './interfaces';
 import { catchPromise } from './util';
 import { bankItemsCall, characterCall, itemCall, mapCall } from './network';
-import { gatherOrCraft, waitForCooldown } from './actions';
+import { gather, gatherOrCraft, waitForCooldown } from './actions';
 import { Model } from './model';
 import { findCraftableItems, logQuantityDifferenceInItems } from './helper';
 import { ItemCode } from './enums';
@@ -77,7 +77,9 @@ async function getMaps(): Promise<Array<IMap>> {
   await waitForCooldown();
 
   // Main loop
-  await gatherOrCraft(ItemCode.cooked_chicken, 1);
+  while (true) {
+    await gather(ItemCode.iron_ore);
+  }
 
   // Log the difference in items
   Model.character = await getCharacter();
