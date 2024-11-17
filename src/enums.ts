@@ -370,15 +370,3 @@ export enum Skill {
   mining = 'mining',
   alchemy = 'alchemy',
 }
-
-export const ItemToResourceMap = new Map([
-  [ItemCode.ash_wood, Resource.ash_tree],
-  [ItemCode.birch_wood, Resource.birch_tree],
-  [ItemCode.coal, Resource.coal_rocks],
-  [ItemCode.copper_ore, Resource.copper_rocks],
-  [ItemCode.dead_wood, Resource.dead_tree],
-  [ItemCode.iron_ore, Resource.iron_rocks],
-  [ItemCode.maple_wood, Resource.maple_tree],
-  [ItemCode.glowstem_leaf, Resource.glowstem],
-  [ItemCode.spruce_wood, Resource.spruce_tree],
-]);

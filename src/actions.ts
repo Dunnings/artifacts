@@ -1,4 +1,4 @@
-import { Action, EquipSlot, ItemCode, ItemToResourceMap, Resource } from './enums';
+import { Action, EquipSlot, ItemCode, Resource } from './enums';
 import {
   characterAtLocation,
   characterHasCraftingIngredients,
@@ -9,6 +9,8 @@ import {
   getItemCount,
   createShoppingList,
   getCraftingStation,
+  getResource,
+  getGatherableResources,
 } from './helper';
 import { IApiActionResponse, ILocation } from './interfaces';
 import { Model } from './model';
@@ -129,19 +131,6 @@ export async function craft(itemCode: ItemCode, quantity = 1): Promise<void> {
   }
 }
 
-export async function gather(item: ItemCode): Promise<void> {
-  const resource = ItemToResourceMap.get(item);
-  if (!resource) {
-    warn(`Item ${item} is not a gatherable resource`);
-    return;
-  }
-
-  await emptyInventory();
-  await move(getNearestMapLocation(resource));
-  log(`Gathering ${item}`);
-  await doActionAndWait(Action.gathering);
-}
-
 export async function gatherOrCraft(itemCode: ItemCode, quantity = 1): Promise<void> {
   info(`Gathering or crafting ${quantity}x ${itemCode}`);
 
@@ -166,5 +155,54 @@ export async function gatherOrCraft(itemCode: ItemCode, quantity = 1): Promise<v
 
   if (craftingRecipe) {
     await craft(itemCode, quantity);
+  }
+}
+
+export async function gather(item: ItemCode, quantity = 1): Promise<void> {
+  const resource = getResource(item);
+  if (!resource) {
+    warn(`Item ${item} is not a gatherable resource`);
+    return;
+  }
+
+  for (let i = 0; i < quantity; i++) {
+    await emptyInventory();
+    await move(getNearestMapLocation(resource));
+    log(`Gathering ${item}`);
+    await doActionAndWait(Action.gathering);
+  }
+}
+
+export async function gatherEverything(): Promise<void> {
+  while (true) {
+    const gatherableResources = getGatherableResources();
+
+    if (gatherableResources.length === 0) {
+      warn('No gatherable resources found');
+      return;
+    }
+
+    // only keep the highest of each skill
+    const uniqueResources = gatherableResources.reduce((acc, val) => {
+      if (acc.find(resource => resource.skill === val.skill)) {
+        if (acc.find(resource => resource.skill === val.skill).level < val.level) {
+          acc = acc.filter(resource => resource.skill !== val.skill);
+          acc.push(val);
+        }
+      } else if (!acc.find(resource => resource.skill === val.skill)) {
+        acc.push(val);
+      }
+      return acc;
+    }, []);
+
+    for (const resource of gatherableResources) {
+      await emptyInventory(false);
+      while (characterInventorySpaceRemaining() > 3) {
+        await emptyInventory();
+        await move(getNearestMapLocation(resource.code));
+        log(`Gathering ${resource.code}`);
+        await doActionAndWait(Action.gathering);
+      }
+    }
   }
 }

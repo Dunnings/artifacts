@@ -1,10 +1,23 @@
 import { ItemCode, Resource, Skill } from './enums';
-import { IBankItem, ICraft, IInventoryItem, IItem, ILocation, IMap } from './interfaces';
+import { IBankItem, ICraft, IInventoryItem, IItem, ILocation, IMap, IResource } from './interfaces';
 import { Model } from './model';
-import { info, log, warn } from './util';
+import { info, warn } from './util';
 
 export function getCraftingRecipe(itemCode: ItemCode): ICraft {
   return Model.items.find(item => item.code === itemCode).craft;
+}
+
+export function getResource(itemCode: ItemCode, limitByLevel = true): Resource {
+  const matchingResources = Model.resources.filter(item => item.drops.find(drop => drop.code === itemCode) && (!limitByLevel || Model.character[`${item.skill}_level`] >= item.level));
+  if (matchingResources.length === 0) {
+    warn(`No resources found for ${itemCode}`);
+    return;
+  }
+  return matchingResources[0].code;
+}
+
+export function getGatherableResources(): Array<IResource> {
+  return Model.resources.filter(resource => Model.character[`${resource.skill}_level`] >= resource.level);
 }
 
 export function characterHasEnoughOfItemForRecipe(itemToCraft: ItemCode, itemToGather: ItemCode, quantityToCraft = 1, includeBankInventory = false): boolean {

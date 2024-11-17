@@ -1,4 +1,4 @@
-import { ItemCode, ItemType, Skill } from './enums';
+import { ItemCode, ItemType, Resource, Skill } from './enums';
 
 export interface ICooldown {
   total_seconds: number;
@@ -17,6 +17,21 @@ export interface IInventoryItem {
 export interface IBankItem {
   code: ItemCode;
   quantity: number;
+}
+
+export interface IDrop {
+  code: ItemCode;
+  rate: number;
+  min_quantity: number;
+  max_quantity: number;
+}
+
+export interface IResource {
+  name: string;
+  code: Resource;
+  skill: Skill;
+  level: number;
+  drops: Array<IDrop>;
 }
 
 export interface ILocation {
@@ -177,6 +192,14 @@ export interface IItem {
 
 export interface IItemsAPIResponse {
   data: IItem[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface IResourceAPIResponse {
+  data: IResource[];
   total: number;
   page: number;
   size: number;

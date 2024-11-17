@@ -1,18 +1,18 @@
-import { IApiCharacterResponse, IBankAPIResponse, IBankItem, ICharacterData, IInventoryItem, IItem, IItemsAPIResponse, IMap, IMapAPIResponse } from './interfaces';
+import { IApiCharacterResponse, IBankAPIResponse, IBankItem, ICharacterData, IInventoryItem, IItem, IItemsAPIResponse, IMap, IMapAPIResponse, IResource, IResourceAPIResponse } from './interfaces';
 import { catchPromise } from './util';
-import { bankItemsCall, characterCall, itemCall, mapCall } from './network';
-import { craft, gather, gatherOrCraft, waitForCooldown } from './actions';
+import { bankItemsCall, characterCall, itemCall, mapCall, resourceCall } from './network';
+import { gatherEverything, waitForCooldown } from './actions';
 import { Model } from './model';
-import { findCraftableItems, logQuantityDifferenceInItems } from './helper';
+import { findCraftableItems, getResource, logQuantityDifferenceInItems } from './helper';
 import { ItemCode } from './enums';
 
-async function getCharacter(): Promise<ICharacterData> {
+async function fetchCharacter(): Promise<ICharacterData> {
   const [response, error] = await catchPromise<IApiCharacterResponse>(characterCall());
   if (error) return;
   return response.data;
 }
 
-async function getItems(): Promise<IItem[]> {
+async function fetchItems(): Promise<IItem[]> {
   const items: IItem[] = [];
   let page = 1;
   let pages: number;
@@ -28,7 +28,23 @@ async function getItems(): Promise<IItem[]> {
   return items;
 }
 
-async function getBankItems(): Promise<IBankItem[]> {
+async function fetchResources(): Promise<IResource[]> {
+  const items: IResource[] = [];
+  let page = 1;
+  let pages: number;
+  do {
+    const [response, error] = await catchPromise<IResourceAPIResponse>(resourceCall(page));
+    if (error) return;
+    response.data.forEach(element => {
+      items.push(element);
+    });
+    pages = response.pages;
+    page = response.page + 1;
+  } while (page < pages);
+  return items;
+}
+
+async function fetchBankItems(): Promise<IBankItem[]> {
   const items: IBankItem[] = [];
   let page = 1;
   let pages: number;
@@ -44,7 +60,7 @@ async function getBankItems(): Promise<IBankItem[]> {
   return items;
 }
 
-async function getMaps(): Promise<Array<IMap>> {
+async function fetchMaps(): Promise<Array<IMap>> {
   const maps: IMap[] = [];
   let page = 1;
   let pages: number;
@@ -64,10 +80,11 @@ async function getMaps(): Promise<Array<IMap>> {
 
 (async () => {
   // Standard actions
-  Model.items = await getItems();
-  Model.maps = await getMaps();
-  Model.bankItems = await getBankItems();
-  Model.character = await getCharacter();
+  Model.items = await fetchItems();
+  Model.maps = await fetchMaps();
+  Model.bankItems = await fetchBankItems();
+  Model.character = await fetchCharacter();
+  Model.resources = await fetchResources();
 
   const beforeItems: (IInventoryItem | IBankItem)[] = JSON.parse(JSON.stringify([...Model.bankItems, ...Model.inventory]));
 
@@ -76,13 +93,11 @@ async function getMaps(): Promise<Array<IMap>> {
   // Wait for any outstanding cooldowns
   await waitForCooldown();
 
-  while (true) {
-    await gather(ItemCode.coal);
-  }
+  await gatherEverything();
 
   // Log the difference in items
-  Model.character = await getCharacter();
-  Model.bankItems = await getBankItems();
+  Model.character = await fetchCharacter();
+  Model.bankItems = await fetchBankItems();
   const afterItems = [...Model.bankItems, ...Model.inventory];
   logQuantityDifferenceInItems(beforeItems, afterItems);
 })();
