@@ -188,7 +188,7 @@ export async function gatherEverything(): Promise<void> {
         acc = acc.filter(resource => resource.skill !== val.skill);
         acc.push(val);
       }
-    } else if (!acc.find(resource => resource.skill === val.skill)) {
+    } else {
       acc.push(val);
     }
     return acc;
