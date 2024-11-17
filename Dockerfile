@@ -16,4 +16,4 @@ COPY . .
 RUN bun install
 
 # Command to run your application
-CMD ["bun", "run", "src/index.ts"]
+CMD ["bun", "run", "src/background.ts"]

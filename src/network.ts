@@ -1,5 +1,20 @@
 import fetch from 'node-fetch';
 import { config } from 'dotenv';
+import {
+  ICharacterData,
+  IApiCharacterResponse,
+  IItem,
+  IItemsAPIResponse,
+  IResource,
+  IResourceAPIResponse,
+  IMonster,
+  IMonsterAPIResponse,
+  IBankItem,
+  IBankAPIResponse,
+  IMap,
+  IMapAPIResponse,
+} from './interfaces';
+import { catchPromise } from './util';
 
 config();
 
@@ -56,4 +71,90 @@ export function bankItemsCall(page = 1) {
 export function mapCall(page = 1) {
   const options = createOptions(undefined, 'GET');
   return fetch(`${server}/maps?page=${page}&size=100`, options);
+}
+
+export async function fetchCharacter(): Promise<ICharacterData> {
+  const [response, error] = await catchPromise<IApiCharacterResponse>(characterCall());
+  if (error) return;
+  return response.data;
+}
+
+export async function fetchItems(): Promise<IItem[]> {
+  const items: IItem[] = [];
+  let page = 1;
+  let pages: number;
+  do {
+    const [response, error] = await catchPromise<IItemsAPIResponse>(itemCall(page));
+    if (error) return;
+    response.data.forEach(element => {
+      items.push(element);
+    });
+    pages = response.pages;
+    page = response.page + 1;
+  } while (page < pages);
+  return items;
+}
+
+export async function fetchResources(): Promise<IResource[]> {
+  const items: IResource[] = [];
+  let page = 1;
+  let pages: number;
+  do {
+    const [response, error] = await catchPromise<IResourceAPIResponse>(resourceCall(page));
+    if (error) return;
+    response.data.forEach(element => {
+      items.push(element);
+    });
+    pages = response.pages;
+    page = response.page + 1;
+  } while (page < pages);
+  return items;
+}
+
+export async function fetchMonsters(): Promise<IMonster[]> {
+  const items: IMonster[] = [];
+  let page = 1;
+  let pages: number;
+  do {
+    const [response, error] = await catchPromise<IMonsterAPIResponse>(monsterCall(page));
+    if (error) return;
+    response.data.forEach((element: any) => {
+      items.push(element);
+    });
+    pages = response.pages;
+    page = response.page + 1;
+  } while (page < pages);
+  return items;
+}
+
+export async function fetchBankItems(): Promise<IBankItem[]> {
+  const items: IBankItem[] = [];
+  let page = 1;
+  let pages: number;
+  do {
+    const [response, error] = await catchPromise<IBankAPIResponse>(bankItemsCall(page));
+    if (error) return;
+    response.data.forEach(element => {
+      items.push(element);
+    });
+    pages = response.pages;
+    page = response.page + 1;
+  } while (page < pages);
+  return items;
+}
+
+export async function fetchMaps(): Promise<Array<IMap>> {
+  const maps: IMap[] = [];
+  let page = 1;
+  let pages: number;
+  do {
+    const [response, error] = await catchPromise<IMapAPIResponse>(mapCall(page));
+    if (error) return;
+    response.data.forEach(element => {
+      maps.push(element);
+    });
+    pages = response.pages;
+    page = response.page + 1;
+  } while (page < pages);
+  return maps;
 }

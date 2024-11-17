@@ -8,9 +8,9 @@ import {
   getCraftingRecipe,
   getItemCount,
   createShoppingList,
-  getCraftingStation,
+  getCraftingSkill,
   getResource,
-  getGatherableResources,
+  getAllGatherableResources,
   findKillableMonsters,
 } from './helper';
 import { IApiActionResponse, ILocation } from './interfaces';
@@ -91,7 +91,7 @@ export async function emptyInventory(onlyIfFull = true): Promise<void> {
 }
 
 export async function craft(itemCode: ItemCode, quantity = 1): Promise<void> {
-  const craftingStation = getCraftingStation(itemCode);
+  const craftingStation = getCraftingSkill(itemCode);
   if (!craftingStation) {
     warn(`Item ${itemCode} is not a craftable resource`);
     return;
@@ -179,7 +179,7 @@ export async function gather(item: ItemCode, quantity = 1): Promise<void> {
  * @returns
  */
 export async function gatherEverything(highestPerSkill = false): Promise<void> {
-  let gatherableResources = getGatherableResources();
+  let gatherableResources = getAllGatherableResources();
 
   if (gatherableResources.length === 0) {
     warn('No gatherable resources found');

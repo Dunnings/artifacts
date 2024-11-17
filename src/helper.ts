@@ -16,7 +16,7 @@ export function getResource(itemCode: ItemCode, limitByLevel = true): ResourceCo
   return matchingResources[0].code;
 }
 
-export function getGatherableResources(): Array<IResource> {
+export function getAllGatherableResources(): Array<IResource> {
   return Model.resources.filter(resource => Model.character[`${resource.skill}_level`] >= resource.level);
 }
 
@@ -27,28 +27,27 @@ export function characterHasEnoughOfItemForRecipe(itemToCraft: ItemCode, itemToG
 
 export function characterHasCraftingIngredients(itemCode: ItemCode, quantity = 1, includeBankInventory = false): boolean {
   const craftingSpec = getCraftingRecipe(itemCode);
-  return craftingSpec.items.every(item => characterHasItem(item.code, item.quantity * quantity, includeBankInventory));
+  return craftingSpec.items.every(item => getItemCount(item.code, includeBankInventory) >= item.quantity * quantity);
 }
 
 export function characterHasCraftingLevel(itemCode: ItemCode, iterative = false): boolean {
   const craftingSpec = getCraftingRecipe(itemCode);
-
-  if (!craftingSpec) {
-    return;
-  }
-
   if (iterative && craftingSpec?.items) {
     return craftingSpec.items.every(item => characterHasCraftingLevel(item.code, true) !== false);
   }
 
+  if (!craftingSpec) {
+    return;
+  }
   return Model.character[`${craftingSpec.skill}_level`] >= craftingSpec.level;
 }
 
 export function canCraft(itemCode: ItemCode, includeBankInventory = false): boolean {
+  if (!getCraftingRecipe(itemCode)) return false;
   return characterHasCraftingLevel(itemCode) && characterHasCraftingIngredients(itemCode, 1, includeBankInventory);
 }
 
-export function getCraftingStation(itemCode: ItemCode): SkillCode {
+export function getCraftingSkill(itemCode: ItemCode): SkillCode {
   return Model.items.find(item => item.code === itemCode).craft?.skill;
 }
 
@@ -56,13 +55,13 @@ export function characterAtLocation(location: { x: number; y: number }): boolean
   return Model.character.x === location.x && Model.character.y === location.y;
 }
 
-export function characterHasItem(itemCode: ItemCode, minQuantity = 0, includeBankInventory = false): boolean {
-  if (!Model.inventory) return false;
-  const inventory: Array<IBankItem | IInventoryItem> = [...Model.inventory];
-  if (includeBankInventory && Model.bankItems) inventory.push(...Model.bankItems);
-  const success = inventory?.find(val => val.code === itemCode && val.quantity >= minQuantity);
-  if (success) return true;
-  return false;
+export function getItemCount(itemCode: ItemCode, includeBankInventory = false): number {
+  const inventory: Map<ItemCode, number> = new Map();
+  Model.inventory.forEach(item => inventory.set(item.code, (inventory.get(item.code) ?? 0) + item.quantity));
+  if (includeBankInventory) {
+    Model.bankItems.forEach(item => inventory.set(item.code, (inventory.get(item.code) ?? 0) + item.quantity));
+  }
+  return inventory.get(itemCode) ?? 0;
 }
 
 export function bankHasItem(itemCode: ItemCode, minQuantity = 0): boolean {
@@ -77,18 +76,13 @@ export function characterInventorySpaceRemaining(): number {
   return Model.character.inventory_max_items - Model.inventory.reduce((acc, val) => acc + val.quantity, 0);
 }
 
-export function findCraftableItems(includeBankInventory = false): Array<IItem> {
+export function findCraftableItems(includeBankInventory = false, itemCheck = true, skillCheck = true): Array<IItem> {
   const craftableItems = Model.items.filter(
     item =>
       item?.craft?.items &&
-      item.craft.items.every(craftingItem => characterHasItem(craftingItem.code, craftingItem.quantity, includeBankInventory)) &&
-      (Model.character[`${item.craft.skill}_level`] ?? 0) >= item.craft.level,
+      (!itemCheck || item.craft.items.every(craftingItem => getItemCount(craftingItem.code, includeBankInventory) > craftingItem.quantity)) &&
+      (!skillCheck || (Model.character[`${item.craft.skill}_level`] ?? 0) >= item.craft.level),
   );
-  if (craftableItems.length === 0) {
-    info('No craftable items found');
-    return;
-  }
-  info(`Found ${craftableItems.length} craftable items: ${craftableItems.map(item => item.code).join(', ')}`);
   return craftableItems;
 }
 
@@ -115,14 +109,6 @@ export function getNearestMap(resource: ResourceCode | SkillCode | MonsterCode):
     { distance: Infinity, map: null },
   );
   return nearestMap.map;
-}
-
-export function getItemCount(itemCode: ItemCode, includeBankInventory = false): number {
-  const inventory: Array<IBankItem | IInventoryItem> = [...Model.inventory];
-  if (includeBankInventory && Model.bankItems) {
-    inventory.push(...Model.bankItems);
-  }
-  return inventory.reduce((acc, val) => (val.code === itemCode ? val.quantity + acc : acc), 0);
 }
 
 export function getCraftableQuantity(itemCode: ItemCode, includeBankInventory = false): number {
@@ -164,7 +150,7 @@ export function createShoppingList(itemCode: ItemCode, quantity: number = 1, sho
   if (isTopLevel) shoppingList = {} as Record<ItemCode, number>;
 
   const craftingSpec = getCraftingRecipe(itemCode);
-  if (!craftingSpec || (!isTopLevel && characterHasItem(itemCode, quantity, true))) {
+  if (!craftingSpec || (!isTopLevel && getItemCount(itemCode, true) > quantity)) {
     if (!shoppingList[itemCode]) shoppingList[itemCode] = 0;
     shoppingList[itemCode] = shoppingList[itemCode] + quantity;
     return shoppingList;
@@ -201,10 +187,10 @@ export function canKill(monster: IMonster): boolean {
   let temp_monster_health = monster_health;
 
   while (temp_player_health > 0 && temp_monster_health > 0) {
-    temp_monster_health -= Math.max(0, player_attack_fire * (1 - monster_res_fire * 0.01));
-    temp_monster_health -= Math.max(0, player_attack_earth * (1 - monster_res_earth * 0.01));
-    temp_monster_health -= Math.max(0, player_attack_water * (1 - monster_res_water * 0.01));
-    temp_monster_health -= Math.max(0, player_attack_air * (1 - monster_res_air * 0.01));
+    temp_monster_health -= Math.max(0, player_attack_fire * (1 + Model.character.dmg_fire * 0.01) * (1 - monster_res_fire * 0.01));
+    temp_monster_health -= Math.max(0, player_attack_earth * (1 + Model.character.dmg_earth * 0.01) * (1 - monster_res_earth * 0.01));
+    temp_monster_health -= Math.max(0, player_attack_water * (1 + Model.character.dmg_water * 0.01) * (1 - monster_res_water * 0.01));
+    temp_monster_health -= Math.max(0, player_attack_air * (1 + Model.character.dmg_air * 0.01) * (1 - monster_res_air * 0.01));
 
     temp_player_health -= Math.max(0, monster_attack_fire * (1 - player_res_fire * 0.01));
     temp_player_health -= Math.max(0, monster_attack_earth * (1 - player_res_earth * 0.01));

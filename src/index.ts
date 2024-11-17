@@ -1,137 +1,180 @@
-import {
-  IApiCharacterResponse,
-  IBankAPIResponse,
-  IBankItem,
-  ICharacterData,
-  IInventoryItem,
-  IItem,
-  IItemsAPIResponse,
-  IMap,
-  IMapAPIResponse,
-  IMonster,
-  IMonsterAPIResponse,
-  IResource,
-  IResourceAPIResponse,
-} from './interfaces';
-import { catchPromise } from './util';
-import { bankItemsCall, characterCall, itemCall, mapCall, monsterCall, resourceCall } from './network';
-import { gatherEverything, hunt, huntEverything, rest, waitForCooldown } from './actions';
+import { fetchBankItems, fetchCharacter, fetchItems, fetchMaps, fetchMonsters, fetchResources } from './network';
 import { Model } from './model';
-import { findCraftableItems, findKillableMonsters, getResource, logQuantityDifferenceInItems } from './helper';
-import { MonsterCode } from './enums';
+import { canCraft, canKill, characterHasCraftingLevel, getAllGatherableResources, getItemCount, getNearestMapLocation } from './helper';
+import inquirer from 'inquirer';
+import chalk from 'chalk';
+import { craft, doActionAndWait, emptyInventory, gather, move, rest, waitForCooldown } from './actions';
+import { log } from './util';
+import { Action } from './enums';
 
-async function fetchCharacter(): Promise<ICharacterData> {
-  const [response, error] = await catchPromise<IApiCharacterResponse>(characterCall());
-  if (error) return;
-  return response.data;
+async function main(): Promise<boolean> {
+  const { command } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'command',
+      message: 'Choose a command:',
+      choices: ['inventory', 'items', 'monsters', 'gather', 'craft', 'rest', 'exit'],
+    },
+  ]);
+
+  switch (command) {
+    case 'inventory':
+      await inventoryChoice();
+      break;
+    case 'craft':
+      await craftChoice();
+      break;
+    case 'gather':
+      await gatherChoice();
+      break;
+    case 'monsters':
+      await monstersChoice();
+      break;
+    case 'items':
+      await itemsChoice();
+      break;
+    case 'rest':
+      await restChoice();
+      break;
+    case 'exit':
+      console.log('');
+      break;
+  }
+
+  return command === 'exit';
 }
 
-async function fetchItems(): Promise<IItem[]> {
-  const items: IItem[] = [];
-  let page = 1;
-  let pages: number;
-  do {
-    const [response, error] = await catchPromise<IItemsAPIResponse>(itemCall(page));
-    if (error) return;
-    response.data.forEach(element => {
-      items.push(element);
-    });
-    pages = response.pages;
-    page = response.page + 1;
-  } while (page < pages);
-  return items;
+async function inventoryChoice() {
+  const { command } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'command',
+      message: '[Inventory] Choose a command:',
+      choices: ['player', 'player + bank'],
+    },
+  ]);
+
+  switch (command) {
+    case 'player':
+      console.log(
+        Model.items
+          .filter(item => getItemCount(item.code) > 1)
+          .map(item => `${getItemCount(item.code)}x ${item.code}`)
+          .join('\n'),
+      );
+      break;
+    case 'player + bank':
+      console.log(
+        Model.items
+          .filter(item => getItemCount(item.code, true) > 1)
+          .map(item => `${getItemCount(item.code, true)}x ${item.code}`)
+          .join('\n'),
+      );
+      break;
+  }
 }
 
-async function fetchResources(): Promise<IResource[]> {
-  const items: IResource[] = [];
-  let page = 1;
-  let pages: number;
-  do {
-    const [response, error] = await catchPromise<IResourceAPIResponse>(resourceCall(page));
-    if (error) return;
-    response.data.forEach(element => {
-      items.push(element);
-    });
-    pages = response.pages;
-    page = response.page + 1;
-  } while (page < pages);
-  return items;
+async function monstersChoice() {
+  const monsters = Model.monsters.map(monster => {
+    return {
+      canKill: canKill(monster),
+      monster,
+    };
+  });
+
+  monsters.sort((a, b) => {
+    if (a.canKill && !b.canKill) return -1;
+    if (!a.canKill && b.canKill) return 1;
+    return 0;
+  });
+
+  console.log(monsters.map(monster => `${monster.monster.code} - ${monster.canKill ? chalk.green('killable') : chalk.red('not killable')}`).join('\n'));
 }
 
-async function fetchMonsters(): Promise<IMonster[]> {
-  const items: IMonster[] = [];
-  let page = 1;
-  let pages: number;
-  do {
-    const [response, error] = await catchPromise<IMonsterAPIResponse>(monsterCall(page));
-    if (error) return;
-    response.data.forEach((element: any) => {
-      items.push(element);
-    });
-    pages = response.pages;
-    page = response.page + 1;
-  } while (page < pages);
-  return items;
+async function itemsChoice() {
+  const items = Model.items.map(item => {
+    return {
+      isCraftable: item.craft !== undefined,
+      highEnoughLevel: characterHasCraftingLevel(item.code),
+      canCraft: item.craft !== undefined && canCraft(item.code, true),
+      item,
+    };
+  });
+
+  items.sort((a, b) => {
+    if (a.canCraft && !b.canCraft) return -1;
+    if (!a.canCraft && b.canCraft) return 1;
+    return 0;
+  });
+
+  console.log(items.map(item => `${item.item.code} - ${item.canCraft ? chalk.green('craftable') : chalk.red('not craftable')}`).join('\n'));
 }
 
-async function fetchBankItems(): Promise<IBankItem[]> {
-  const items: IBankItem[] = [];
-  let page = 1;
-  let pages: number;
-  do {
-    const [response, error] = await catchPromise<IBankAPIResponse>(bankItemsCall(page));
-    if (error) return;
-    response.data.forEach(element => {
-      items.push(element);
-    });
-    pages = response.pages;
-    page = response.page + 1;
-  } while (page < pages);
-  return items;
+async function craftChoice() {
+  const items = Model.items.filter(item => canCraft(item.code, true));
+
+  const { itemCode, quantity } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'itemCode',
+      message: 'Choose item to craft:',
+      choices: items.map(item => item.code),
+    },
+    {
+      type: 'number',
+      name: 'quantity',
+      message: 'Quantity:',
+      default: 1,
+    },
+  ]);
+
+  await waitForCooldown();
+  await craft(itemCode, quantity);
 }
 
-async function fetchMaps(): Promise<Array<IMap>> {
-  const maps: IMap[] = [];
-  let page = 1;
-  let pages: number;
-  do {
-    const [response, error] = await catchPromise<IMapAPIResponse>(mapCall(page));
-    if (error) return;
-    response.data.forEach(element => {
-      maps.push(element);
-    });
-    pages = response.pages;
-    page = response.page + 1;
-  } while (page < pages);
-  return maps;
+async function gatherChoice() {
+  const resources = getAllGatherableResources();
+
+  const { resourceCode, quantity } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'resourceCode',
+      message: 'Choose resource to gather:',
+      choices: resources.map(resource => resource.code),
+    },
+    {
+      type: 'number',
+      name: 'quantity',
+      message: 'Quantity:',
+      default: 1,
+    },
+  ]);
+
+  await emptyInventory(false);
+  for (let i = 0; i < quantity; i++) {
+    await move(getNearestMapLocation(resourceCode));
+    log(`Gathering ${resourceCode}`);
+    await doActionAndWait(Action.gathering);
+  }
+}
+
+async function restChoice(): Promise<void> {
+  await rest();
 }
 
 // Common action macros
 
 (async () => {
   // Standard actions
+  Model.character = await fetchCharacter();
+  Model.bankItems = await fetchBankItems();
   Model.items = await fetchItems();
   Model.maps = await fetchMaps();
-  Model.bankItems = await fetchBankItems();
-  Model.character = await fetchCharacter();
   Model.resources = await fetchResources();
   Model.monsters = await fetchMonsters();
 
-  findCraftableItems(true);
-  findKillableMonsters();
-
-  // Wait for any outstanding cooldowns
-  await waitForCooldown();
-
-  while (true) {
-    const beforeItems: (IInventoryItem | IBankItem)[] = JSON.parse(JSON.stringify([...Model.bankItems, ...Model.inventory]));
-
-    await gatherEverything();
-    await huntEverything();
-
-    Model.character = await fetchCharacter();
-    Model.bankItems = await fetchBankItems();
-    const afterItems = [...Model.bankItems, ...Model.inventory];
-    logQuantityDifferenceInItems(beforeItems, afterItems);
+  let exit = false;
+  while (!exit) {
+    exit = await main();
   }
 })();
