@@ -178,7 +178,7 @@ export function createShoppingList(itemCode: ItemCode, quantity: number = 1, sho
 }
 
 export function canKill(monster: IMonster): boolean {
-  const player_health = Model.character.hp;
+  const player_health = Model.character.max_hp;
   const player_attack_fire = Model.character.attack_fire;
   const player_attack_earth = Model.character.attack_earth;
   const player_attack_water = Model.character.attack_water;
