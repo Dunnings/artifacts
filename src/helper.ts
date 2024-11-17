@@ -1,5 +1,5 @@
-import { ItemCode, Resource, Skill } from './enums';
-import { IBankItem, ICraft, IInventoryItem, IItem, ILocation, IMap, IResource } from './interfaces';
+import { ItemCode, MonsterCode, ResourceCode, SkillCode } from './enums';
+import { IBankItem, ICraft, IInventoryItem, IItem, ILocation, IMap, IMonster, IResource } from './interfaces';
 import { Model } from './model';
 import { info, warn } from './util';
 
@@ -7,7 +7,7 @@ export function getCraftingRecipe(itemCode: ItemCode): ICraft {
   return Model.items.find(item => item.code === itemCode).craft;
 }
 
-export function getResource(itemCode: ItemCode, limitByLevel = true): Resource {
+export function getResource(itemCode: ItemCode, limitByLevel = true): ResourceCode {
   const matchingResources = Model.resources.filter(item => item.drops.find(drop => drop.code === itemCode) && (!limitByLevel || Model.character[`${item.skill}_level`] >= item.level));
   if (matchingResources.length === 0) {
     warn(`No resources found for ${itemCode}`);
@@ -48,7 +48,7 @@ export function canCraft(itemCode: ItemCode, includeBankInventory = false): bool
   return characterHasCraftingLevel(itemCode) && characterHasCraftingIngredients(itemCode, 1, includeBankInventory);
 }
 
-export function getCraftingStation(itemCode: ItemCode): Skill {
+export function getCraftingStation(itemCode: ItemCode): SkillCode {
   return Model.items.find(item => item.code === itemCode).craft?.skill;
 }
 
@@ -92,13 +92,13 @@ export function findCraftableItems(includeBankInventory = false): Array<IItem> {
   return craftableItems;
 }
 
-export function getNearestMapLocation(resource: Resource | Skill): ILocation {
+export function getNearestMapLocation(resource: ResourceCode | SkillCode | MonsterCode): ILocation {
   const nearestMap = getNearestMap(resource);
   if (!nearestMap) return;
   return { x: nearestMap.x, y: nearestMap.y };
 }
 
-export function getNearestMap(resource: Resource | Skill): IMap {
+export function getNearestMap(resource: ResourceCode | SkillCode | MonsterCode): IMap {
   const resourceMaps = Model.maps.filter(map => map.content?.code === resource);
   if (resourceMaps.length === 0) {
     warn(`No maps found with resource ${resource}`);
@@ -175,4 +175,52 @@ export function createShoppingList(itemCode: ItemCode, quantity: number = 1, sho
   }
 
   return shoppingList;
+}
+
+export function canKill(monster: IMonster): boolean {
+  const player_health = Model.character.hp;
+  const player_attack_fire = Model.character.attack_fire;
+  const player_attack_earth = Model.character.attack_earth;
+  const player_attack_water = Model.character.attack_water;
+  const player_attack_air = Model.character.attack_air;
+  const player_res_fire = Model.character.res_fire;
+  const player_res_earth = Model.character.res_earth;
+  const player_res_water = Model.character.res_water;
+  const player_res_air = Model.character.res_air;
+  const monster_health = monster.hp;
+  const monster_attack_fire = monster.attack_fire;
+  const monster_attack_earth = monster.attack_earth;
+  const monster_attack_water = monster.attack_water;
+  const monster_attack_air = monster.attack_air;
+  const monster_res_fire = monster.res_fire;
+  const monster_res_earth = monster.res_earth;
+  const monster_res_water = monster.res_water;
+  const monster_res_air = monster.res_air;
+
+  let temp_player_health = player_health;
+  let temp_monster_health = monster_health;
+
+  while (temp_player_health > 0 && temp_monster_health > 0) {
+    temp_monster_health -= Math.max(0, player_attack_fire * (1 - monster_res_fire * 0.01));
+    temp_monster_health -= Math.max(0, player_attack_earth * (1 - monster_res_earth * 0.01));
+    temp_monster_health -= Math.max(0, player_attack_water * (1 - monster_res_water * 0.01));
+    temp_monster_health -= Math.max(0, player_attack_air * (1 - monster_res_air * 0.01));
+
+    temp_player_health -= Math.max(0, monster_attack_fire * (1 - player_res_fire * 0.01));
+    temp_player_health -= Math.max(0, monster_attack_earth * (1 - player_res_earth * 0.01));
+    temp_player_health -= Math.max(0, monster_attack_water * (1 - player_res_water * 0.01));
+    temp_player_health -= Math.max(0, monster_attack_air * (1 - player_res_air * 0.01));
+  }
+
+  return temp_player_health > 0;
+}
+
+export function findKillableMonsters(): Array<IMonster> {
+  const killableMonsters = Model.monsters.filter(monster => canKill(monster));
+  if (killableMonsters.length === 0) {
+    info('No killable monsters found');
+    return;
+  }
+  info(`Found ${killableMonsters.length} killable monsters: ${killableMonsters.map(item => item.code).join(', ')}`);
+  return killableMonsters;
 }

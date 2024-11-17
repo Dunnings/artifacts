@@ -43,6 +43,11 @@ export function resourceCall(page = 1) {
   return fetch(`${server}/resources?page=${page}`, options);
 }
 
+export function monsterCall(page = 1) {
+  const options = createOptions(undefined, 'GET');
+  return fetch(`${server}/monsters?page=${page}`, options);
+}
+
 export function bankItemsCall(page = 1) {
   const options = createOptions(undefined, 'GET');
   return fetch(`${server}/my/bank/items?page=${page}&size=100`, options);

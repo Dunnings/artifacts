@@ -1,4 +1,4 @@
-import { Action, EquipSlot, ItemCode, Resource } from './enums';
+import { Action, EquipSlot, ItemCode, MonsterCode, ResourceCode } from './enums';
 import {
   characterAtLocation,
   characterHasCraftingIngredients,
@@ -11,6 +11,7 @@ import {
   getCraftingStation,
   getResource,
   getGatherableResources,
+  findKillableMonsters,
 } from './helper';
 import { IApiActionResponse, ILocation } from './interfaces';
 import { Model } from './model';
@@ -75,7 +76,7 @@ export async function move(location: ILocation) {
 }
 
 export async function withdraw(code: ItemCode, quantity: number) {
-  await move(getNearestMapLocation(Resource.bank));
+  await move(getNearestMapLocation(ResourceCode.bank));
   log(`Withdrawing ${quantity}x ${code}`);
   await doActionAndWait(Action.withdraw, { code, quantity });
 }
@@ -85,7 +86,7 @@ export async function withdraw(code: ItemCode, quantity: number) {
  */
 export async function emptyInventory(onlyIfFull = true): Promise<void> {
   if (onlyIfFull && characterInventorySpaceRemaining() >= 3) return;
-  await move(getNearestMapLocation(Resource.bank));
+  await move(getNearestMapLocation(ResourceCode.bank));
   await depositAllItems();
 }
 
@@ -112,7 +113,7 @@ export async function craft(itemCode: ItemCode, quantity = 1): Promise<void> {
 
   while (amountRemainingToCraft > 0) {
     if (!characterHasCraftingIngredients(itemCode, amountRemainingToCraft)) {
-      await move(getNearestMapLocation(Resource.bank));
+      await move(getNearestMapLocation(ResourceCode.bank));
       await depositAllItems();
 
       thisIterationCraftableQuantity = Math.floor(characterInventorySpaceRemaining() / totalQuantity);
@@ -173,8 +174,12 @@ export async function gather(item: ItemCode, quantity = 1): Promise<void> {
   }
 }
 
-export async function gatherEverything(): Promise<void> {
-  const gatherableResources = getGatherableResources();
+/**
+ * Gather all gatherable resources
+ * @returns
+ */
+export async function gatherEverything(highestPerSkill = false): Promise<void> {
+  let gatherableResources = getGatherableResources();
 
   if (gatherableResources.length === 0) {
     warn('No gatherable resources found');
@@ -182,24 +187,49 @@ export async function gatherEverything(): Promise<void> {
   }
 
   // only keep the highest of each skill
-  const uniqueResources = gatherableResources.reduce((acc, val) => {
-    if (acc.find(resource => resource.skill === val.skill)) {
-      if (acc.find(resource => resource.skill === val.skill).level < val.level) {
-        acc = acc.filter(resource => resource.skill !== val.skill);
+  if (highestPerSkill) {
+    gatherableResources = gatherableResources.reduce((acc, val) => {
+      if (acc.find(resource => resource.skill === val.skill)) {
+        if (acc.find(resource => resource.skill === val.skill).level < val.level) {
+          acc = acc.filter(resource => resource.skill !== val.skill);
+          acc.push(val);
+        }
+      } else {
         acc.push(val);
       }
-    } else {
-      acc.push(val);
-    }
-    return acc;
-  }, []);
+      return acc;
+    }, []);
+  }
 
-  for (const resource of uniqueResources) {
+  for (const resource of gatherableResources) {
     await emptyInventory(false);
     while (characterInventorySpaceRemaining() > 3) {
       await move(getNearestMapLocation(resource.code));
       log(`Gathering ${resource.code}`);
       await doActionAndWait(Action.gathering);
     }
+  }
+}
+
+export async function hunt(monster: MonsterCode, quantity = 1): Promise<void> {
+  for (let i = 0; i < quantity; i++) {
+    await emptyInventory();
+    await rest();
+    await move(getNearestMapLocation(monster));
+    log(`Fighting ${monster}`);
+    await doActionAndWait(Action.fight);
+  }
+}
+
+export async function huntEverything(): Promise<void> {
+  const killableMonsters = findKillableMonsters();
+
+  if (killableMonsters.length === 0) {
+    warn('No killable monsters found');
+    return;
+  }
+
+  for (const monster of killableMonsters) {
+    await hunt(monster.code);
   }
 }

@@ -10,7 +10,7 @@ export enum Action {
   withdraw = 'bank/withdraw',
 }
 
-export enum Resource {
+export enum ResourceCode {
   birch_tree = 'birch_tree',
   salmon_fishing_spot = 'salmon_fishing_spot',
   gold_rocks = 'gold_rocks',
@@ -361,7 +361,7 @@ export enum EquipSlot {
   weapon = 'weapon',
 }
 
-export enum Skill {
+export enum SkillCode {
   weaponcrafting = 'weaponcrafting',
   gearcrafting = 'gearcrafting',
   jewelrycrafting = 'jewelrycrafting',
@@ -369,4 +369,36 @@ export enum Skill {
   woodcutting = 'woodcutting',
   mining = 'mining',
   alchemy = 'alchemy',
+}
+
+export enum MonsterCode {
+  chicken = 'chicken',
+  yellow_slime = 'yellow_slime',
+  green_slime = 'green_slime',
+  blue_slime = 'blue_slime',
+  red_slime = 'red_slime',
+  cow = 'cow',
+  mushmush = 'mushmush',
+  flying_serpent = 'flying_serpent',
+  wolf = 'wolf',
+  skeleton = 'skeleton',
+  pig = 'pig',
+  ogre = 'ogre',
+  vampire = 'vampire',
+  bandit_lizard = 'bandit_lizard',
+  cyclops = 'cyclops',
+  death_knight = 'death_knight',
+  imp = 'imp',
+  owlbear = 'owlbear',
+  demon = 'demon',
+  lich = 'lich',
+  cultist_acolyte = 'cultist_acolyte',
+  cultist_emperor = 'cultist_emperor',
+  goblin = 'goblin',
+  bat = 'bat',
+  orc = 'orc',
+  rosenblood = 'rosenblood',
+  goblin_wolfrider = 'goblin_wolfrider',
+  hellhound = 'hellhound',
+  efreet_sultan = 'efreet_sultan',
 }

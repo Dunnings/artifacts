@@ -1,9 +1,24 @@
-import { IApiCharacterResponse, IBankAPIResponse, IBankItem, ICharacterData, IInventoryItem, IItem, IItemsAPIResponse, IMap, IMapAPIResponse, IResource, IResourceAPIResponse } from './interfaces';
+import {
+  IApiCharacterResponse,
+  IBankAPIResponse,
+  IBankItem,
+  ICharacterData,
+  IInventoryItem,
+  IItem,
+  IItemsAPIResponse,
+  IMap,
+  IMapAPIResponse,
+  IMonster,
+  IMonsterAPIResponse,
+  IResource,
+  IResourceAPIResponse,
+} from './interfaces';
 import { catchPromise } from './util';
-import { bankItemsCall, characterCall, itemCall, mapCall, resourceCall } from './network';
-import { gatherEverything, waitForCooldown } from './actions';
+import { bankItemsCall, characterCall, itemCall, mapCall, monsterCall, resourceCall } from './network';
+import { gatherEverything, hunt, huntEverything, rest, waitForCooldown } from './actions';
 import { Model } from './model';
-import { findCraftableItems, getResource, logQuantityDifferenceInItems } from './helper';
+import { findCraftableItems, findKillableMonsters, getResource, logQuantityDifferenceInItems } from './helper';
+import { MonsterCode } from './enums';
 
 async function fetchCharacter(): Promise<ICharacterData> {
   const [response, error] = await catchPromise<IApiCharacterResponse>(characterCall());
@@ -35,6 +50,22 @@ async function fetchResources(): Promise<IResource[]> {
     const [response, error] = await catchPromise<IResourceAPIResponse>(resourceCall(page));
     if (error) return;
     response.data.forEach(element => {
+      items.push(element);
+    });
+    pages = response.pages;
+    page = response.page + 1;
+  } while (page < pages);
+  return items;
+}
+
+async function fetchMonsters(): Promise<IMonster[]> {
+  const items: IMonster[] = [];
+  let page = 1;
+  let pages: number;
+  do {
+    const [response, error] = await catchPromise<IMonsterAPIResponse>(monsterCall(page));
+    if (error) return;
+    response.data.forEach((element: any) => {
       items.push(element);
     });
     pages = response.pages;
@@ -84,16 +115,19 @@ async function fetchMaps(): Promise<Array<IMap>> {
   Model.bankItems = await fetchBankItems();
   Model.character = await fetchCharacter();
   Model.resources = await fetchResources();
-
-  const beforeItems: (IInventoryItem | IBankItem)[] = JSON.parse(JSON.stringify([...Model.bankItems, ...Model.inventory]));
+  Model.monsters = await fetchMonsters();
 
   findCraftableItems(true);
+  findKillableMonsters();
 
   // Wait for any outstanding cooldowns
   await waitForCooldown();
 
   while (true) {
+    const beforeItems: (IInventoryItem | IBankItem)[] = JSON.parse(JSON.stringify([...Model.bankItems, ...Model.inventory]));
+
     await gatherEverything();
+    await huntEverything();
 
     Model.character = await fetchCharacter();
     Model.bankItems = await fetchBankItems();

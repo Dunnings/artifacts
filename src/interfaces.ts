@@ -1,4 +1,4 @@
-import { ItemCode, ItemType, Resource, Skill } from './enums';
+import { ItemCode, ItemType, MonsterCode, ResourceCode, SkillCode } from './enums';
 
 export interface ICooldown {
   total_seconds: number;
@@ -28,8 +28,8 @@ export interface IDrop {
 
 export interface IResource {
   name: string;
-  code: Resource;
-  skill: Skill;
+  code: ResourceCode;
+  skill: SkillCode;
   level: number;
   drops: Array<IDrop>;
 }
@@ -172,7 +172,7 @@ export interface ISimpleItem {
 }
 
 export interface ICraft {
-  skill: Skill; // Skill required to craft the item
+  skill: SkillCode; // Skill required to craft the item
   level: number; // The skill level required to craft the item
   items: ISimpleItem[]; // List of items required to craft the item
   quantity: number; // Quantity of items crafted
@@ -212,4 +212,30 @@ export interface IBankAPIResponse {
   page: number;
   size: number;
   pages: number;
+}
+
+export interface IMonsterAPIResponse {
+  data: IMonster[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface IMonster {
+  name: string;
+  code: MonsterCode;
+  level: number;
+  hp: number;
+  attack_fire: number;
+  attack_earth: number;
+  attack_water: number;
+  attack_air: number;
+  res_fire: number;
+  res_earth: number;
+  res_water: number;
+  res_air: number;
+  min_gold: number;
+  max_gold: number;
+  drops: Array<IDrop>;
 }

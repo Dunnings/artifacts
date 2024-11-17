@@ -1,10 +1,11 @@
-import { IBankItem, ICharacterData, IInventoryItem, IItem, IMap, IResource } from './interfaces';
+import { IBankItem, ICharacterData, IInventoryItem, IItem, IMap, IMonster, IResource } from './interfaces';
 
 export class Model {
+  public static bankItems: IBankItem[];
   public static character: ICharacterData;
   public static items: IItem[];
-  public static bankItems: IBankItem[];
   public static maps: IMap[];
+  public static monsters: IMonster[];
   public static resources: IResource[];
 
   public static get inventory(): IInventoryItem[] {
