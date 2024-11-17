@@ -93,7 +93,6 @@ async function fetchMaps(): Promise<Array<IMap>> {
   await waitForCooldown();
 
   while (true) {
-    Model.resources = await fetchResources();
     await gatherEverything();
 
     Model.character = await fetchCharacter();
