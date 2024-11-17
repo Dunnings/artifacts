@@ -174,35 +174,32 @@ export async function gather(item: ItemCode, quantity = 1): Promise<void> {
 }
 
 export async function gatherEverything(): Promise<void> {
-  while (true) {
-    const gatherableResources = getGatherableResources();
+  const gatherableResources = getGatherableResources();
 
-    if (gatherableResources.length === 0) {
-      warn('No gatherable resources found');
-      return;
-    }
+  if (gatherableResources.length === 0) {
+    warn('No gatherable resources found');
+    return;
+  }
 
-    // only keep the highest of each skill
-    const uniqueResources = gatherableResources.reduce((acc, val) => {
-      if (acc.find(resource => resource.skill === val.skill)) {
-        if (acc.find(resource => resource.skill === val.skill).level < val.level) {
-          acc = acc.filter(resource => resource.skill !== val.skill);
-          acc.push(val);
-        }
-      } else if (!acc.find(resource => resource.skill === val.skill)) {
+  // only keep the highest of each skill
+  const uniqueResources = gatherableResources.reduce((acc, val) => {
+    if (acc.find(resource => resource.skill === val.skill)) {
+      if (acc.find(resource => resource.skill === val.skill).level < val.level) {
+        acc = acc.filter(resource => resource.skill !== val.skill);
         acc.push(val);
       }
-      return acc;
-    }, []);
+    } else if (!acc.find(resource => resource.skill === val.skill)) {
+      acc.push(val);
+    }
+    return acc;
+  }, []);
 
-    for (const resource of gatherableResources) {
-      await emptyInventory(false);
-      while (characterInventorySpaceRemaining() > 3) {
-        await emptyInventory();
-        await move(getNearestMapLocation(resource.code));
-        log(`Gathering ${resource.code}`);
-        await doActionAndWait(Action.gathering);
-      }
+  for (const resource of uniqueResources) {
+    await emptyInventory(false);
+    while (characterInventorySpaceRemaining() > 3) {
+      await move(getNearestMapLocation(resource.code));
+      log(`Gathering ${resource.code}`);
+      await doActionAndWait(Action.gathering);
     }
   }
 }

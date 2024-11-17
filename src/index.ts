@@ -4,7 +4,6 @@ import { bankItemsCall, characterCall, itemCall, mapCall, resourceCall } from '.
 import { gatherEverything, waitForCooldown } from './actions';
 import { Model } from './model';
 import { findCraftableItems, getResource, logQuantityDifferenceInItems } from './helper';
-import { ItemCode } from './enums';
 
 async function fetchCharacter(): Promise<ICharacterData> {
   const [response, error] = await catchPromise<IApiCharacterResponse>(characterCall());
@@ -93,11 +92,13 @@ async function fetchMaps(): Promise<Array<IMap>> {
   // Wait for any outstanding cooldowns
   await waitForCooldown();
 
-  await gatherEverything();
+  while (true) {
+    Model.resources = await fetchResources();
+    await gatherEverything();
 
-  // Log the difference in items
-  Model.character = await fetchCharacter();
-  Model.bankItems = await fetchBankItems();
-  const afterItems = [...Model.bankItems, ...Model.inventory];
-  logQuantityDifferenceInItems(beforeItems, afterItems);
+    Model.character = await fetchCharacter();
+    Model.bankItems = await fetchBankItems();
+    const afterItems = [...Model.bankItems, ...Model.inventory];
+    logQuantityDifferenceInItems(beforeItems, afterItems);
+  }
 })();
