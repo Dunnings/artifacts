@@ -1,4 +1,4 @@
-import { ItemCode, Resource } from './enums';
+import { ItemCode, Resource, Skill } from './enums';
 import { IBankItem, ICraft, IInventoryItem, IItem, ILocation, IMap } from './interfaces';
 import { Model } from './model';
 import { info, log, warn } from './util';
@@ -33,6 +33,10 @@ export function characterHasCraftingLevel(itemCode: ItemCode, iterative = false)
 
 export function canCraft(itemCode: ItemCode, includeBankInventory = false): boolean {
   return characterHasCraftingLevel(itemCode) && characterHasCraftingIngredients(itemCode, 1, includeBankInventory);
+}
+
+export function getCraftingStation(itemCode: ItemCode): Skill {
+  return Model.items.find(item => item.code === itemCode).craft?.skill;
 }
 
 export function characterAtLocation(location: { x: number; y: number }): boolean {
@@ -75,13 +79,13 @@ export function findCraftableItems(includeBankInventory = false): Array<IItem> {
   return craftableItems;
 }
 
-export function getNearestMapLocation(resource: Resource): ILocation {
+export function getNearestMapLocation(resource: Resource | Skill): ILocation {
   const nearestMap = getNearestMap(resource);
   if (!nearestMap) return;
   return { x: nearestMap.x, y: nearestMap.y };
 }
 
-export function getNearestMap(resource: Resource): IMap {
+export function getNearestMap(resource: Resource | Skill): IMap {
   const resourceMaps = Model.maps.filter(map => map.content?.code === resource);
   if (resourceMaps.length === 0) {
     warn(`No maps found with resource ${resource}`);

@@ -382,10 +382,3 @@ export const ItemToResourceMap = new Map([
   [ItemCode.glowstem_leaf, Resource.glowstem],
   [ItemCode.spruce_wood, Resource.spruce_tree],
 ]);
-
-export const ItemToCraftingStation = new Map([
-  [ItemCode.iron, Resource.mining],
-  [ItemCode.copper, Resource.mining],
-  [ItemCode.copper_ring, Resource.jewelrycrafting],
-  [ItemCode.cooked_chicken, Resource.cooking],
-]);

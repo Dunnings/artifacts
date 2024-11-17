@@ -1,14 +1,14 @@
-import { Action, EquipSlot, ItemCode, ItemToCraftingStation, ItemToResourceMap, Resource } from './enums';
+import { Action, EquipSlot, ItemCode, ItemToResourceMap, Resource } from './enums';
 import {
   characterAtLocation,
   characterHasCraftingIngredients,
-  characterHasCraftingLevel,
   characterInventorySpaceRemaining,
   getNearestMapLocation,
   getCraftableQuantity,
   getCraftingRecipe,
   getItemCount,
   createShoppingList,
+  getCraftingStation,
 } from './helper';
 import { IApiActionResponse, ILocation } from './interfaces';
 import { Model } from './model';
@@ -88,7 +88,7 @@ export async function emptyInventory(onlyIfFull = true): Promise<void> {
 }
 
 export async function craft(itemCode: ItemCode, quantity = 1): Promise<void> {
-  const craftingStation = ItemToCraftingStation.get(itemCode);
+  const craftingStation = getCraftingStation(itemCode);
   if (!craftingStation) {
     warn(`Item ${itemCode} is not a craftable resource`);
     return;
