@@ -65,6 +65,7 @@ export async function unequip(slot: EquipSlot) {
 }
 
 export async function rest() {
+  if (Model.character.hp === Model.character.max_hp) return;
   log('Resting');
   await doActionAndWait(Action.rest);
 }

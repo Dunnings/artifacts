@@ -202,11 +202,5 @@ export function canKill(monster: IMonster): boolean {
 }
 
 export function findKillableMonsters(): Array<IMonster> {
-  const killableMonsters = Model.monsters.filter(monster => canKill(monster));
-  if (killableMonsters.length === 0) {
-    info('No killable monsters found');
-    return;
-  }
-  info(`Found ${killableMonsters.length} killable monsters: ${killableMonsters.map(item => item.code).join(', ')}`);
-  return killableMonsters;
+  return Model.monsters.filter(monster => canKill(monster));
 }
