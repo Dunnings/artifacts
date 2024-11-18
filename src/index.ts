@@ -3,7 +3,7 @@ import { Model } from './model';
 import { canCraft, canKill, characterHasCraftingLevel, findKillableMonsters, getAllGatherableResources, getCraftableQuantity, getItemCount, getNearestMapLocation } from './helper';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
-import { craft, doActionAndWait, emptyInventory, hunt, move, rest, waitForCooldown } from './actions';
+import { craft, doActionAndWait, emptyInventory, hunt, move, recycle, rest, waitForCooldown } from './actions';
 import { log } from './util';
 import { Action } from './enums';
 
@@ -13,7 +13,7 @@ async function main(): Promise<boolean> {
       type: 'list',
       name: 'command',
       message: 'Choose a command:',
-      choices: ['craft', 'deposit', 'gather', 'hunt', 'inventory', 'items', 'monsters', 'rest', 'exit'],
+      choices: ['craft', 'deposit', 'gather', 'hunt', 'inventory', 'items', 'monsters', 'recycle', 'rest', 'exit'],
     },
   ]);
 
@@ -38,6 +38,9 @@ async function main(): Promise<boolean> {
       break;
     case 'monsters':
       await monstersChoice();
+      break;
+    case 'recycle':
+      await recycleChoice();
       break;
     case 'rest':
       await restChoice();
@@ -192,6 +195,28 @@ async function huntChoice() {
 
 async function restChoice(): Promise<void> {
   await rest();
+}
+
+async function recycleChoice() {
+  const { monsterCode: itemCode } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'monsterCode',
+      message: '[Recycle] Choose an item to recycle:',
+      choices: Model.inventory.map(item => item.code),
+    },
+  ]);
+
+  const { quantity } = await inquirer.prompt([
+    {
+      type: 'number',
+      name: 'quantity',
+      message: `[Recycle] Quantity (max ${Model.inventory.find(item => item.code === itemCode).quantity}):`,
+      default: 1,
+    },
+  ]);
+
+  await recycle(itemCode, quantity);
 }
 
 // Common action macros

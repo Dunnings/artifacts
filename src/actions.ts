@@ -128,7 +128,7 @@ export async function craft(itemCode: ItemCode, quantity = 1): Promise<void> {
 
     await move(getNearestMapLocation(craftingStation));
     log(`Crafting ${thisIterationCraftableQuantity}x ${itemCode}`);
-    await doActionAndWait(Action.crafting, { code: itemCode, quantity: thisIterationCraftableQuantity });
+    await doActionAndWait(Action.craft, { code: itemCode, quantity: thisIterationCraftableQuantity });
 
     amountRemainingToCraft -= thisIterationCraftableQuantity;
   }
@@ -172,7 +172,7 @@ export async function gather(item: ItemCode, quantity = 1): Promise<void> {
     await emptyInventory();
     await move(getNearestMapLocation(resource));
     log(`Gathering ${item}`);
-    await doActionAndWait(Action.gathering);
+    await doActionAndWait(Action.gather);
   }
 }
 
@@ -208,7 +208,7 @@ export async function gatherEverything(highestPerSkill = false): Promise<void> {
     while (characterInventorySpaceRemaining() > 3) {
       await move(getNearestMapLocation(resource.code));
       log(`Gathering ${resource.code}`);
-      await doActionAndWait(Action.gathering);
+      await doActionAndWait(Action.gather);
     }
   }
 }
@@ -234,4 +234,17 @@ export async function huntEverything(): Promise<void> {
   for (const monster of killableMonsters) {
     await hunt(monster.code);
   }
+}
+
+export async function recycle(itemCode: ItemCode, quantity: number): Promise<void> {
+  const craftingStation = getCraftingSkill(itemCode);
+
+  if (!craftingStation) {
+    warn(`Item ${itemCode} is not a recyclable resource`);
+    return;
+  }
+
+  await move(getNearestMapLocation(craftingStation));
+  log('Recycling');
+  await doActionAndWait(Action.recycle, { code: itemCode, quantity });
 }

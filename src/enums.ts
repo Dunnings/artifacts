@@ -2,12 +2,13 @@ export enum Action {
   fight = 'fight',
   move = 'move',
   rest = 'rest',
-  gathering = 'gathering',
-  crafting = 'crafting',
+  gather = 'gathering',
+  craft = 'crafting',
   unequip = 'unequip',
   equip = 'equip',
   deposit = 'bank/deposit',
   withdraw = 'bank/withdraw',
+  recycle = 'recycling',
 }
 
 export enum ResourceCode {
