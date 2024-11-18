@@ -107,17 +107,19 @@ export async function craft(itemCode: ItemCode, quantity = 1): Promise<void> {
   let amountRemainingToCraft = quantity;
   let thisIterationCraftableQuantity: number;
 
-  const craftingSpec = getCraftingRecipe(itemCode);
-  const craftingItemQuantities = craftingSpec.items.map(item => item.quantity);
-  const totalQuantity = craftingItemQuantities.reduce((acc, val) => acc + val, 0);
+  const craftingSpec = getCraftingRecipe(itemCode); // 1 gudgeon
+  const craftingItemQuantities = craftingSpec.items.map(item => item.quantity); // [1]
+  const totalQuantity = craftingItemQuantities.reduce((acc, val) => acc + val, 0); // 1
+
+  const maxCraftableQuantity = Math.floor(Model.character.inventory_max_items / totalQuantity);
 
   while (amountRemainingToCraft > 0) {
-    if (!characterHasCraftingIngredients(itemCode, amountRemainingToCraft)) {
+    if (!characterHasCraftingIngredients(itemCode, maxCraftableQuantity)) {
       await move(getNearestMapLocation(ResourceCode.bank));
       await depositAllItems();
 
-      thisIterationCraftableQuantity = Math.floor(characterInventorySpaceRemaining() / totalQuantity);
-      thisIterationCraftableQuantity = Math.min(getCraftableQuantity(itemCode, true), amountRemainingToCraft);
+      thisIterationCraftableQuantity = Math.min(getCraftableQuantity(itemCode, true), maxCraftableQuantity);
+      thisIterationCraftableQuantity = Math.min(thisIterationCraftableQuantity, amountRemainingToCraft);
 
       for (const item of craftingSpec.items) {
         await withdraw(item.code, item.quantity * thisIterationCraftableQuantity);

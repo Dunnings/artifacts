@@ -1,9 +1,9 @@
 import { fetchBankItems, fetchCharacter, fetchItems, fetchMaps, fetchMonsters, fetchResources } from './network';
 import { Model } from './model';
-import { canCraft, canKill, characterHasCraftingLevel, getAllGatherableResources, getItemCount, getNearestMapLocation } from './helper';
+import { canCraft, canKill, characterHasCraftingLevel, findKillableMonsters, getAllGatherableResources, getCraftableQuantity, getItemCount, getNearestMapLocation } from './helper';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
-import { craft, doActionAndWait, emptyInventory, gather, move, rest, waitForCooldown } from './actions';
+import { craft, doActionAndWait, emptyInventory, hunt, move, rest, waitForCooldown } from './actions';
 import { log } from './util';
 import { Action } from './enums';
 
@@ -13,25 +13,31 @@ async function main(): Promise<boolean> {
       type: 'list',
       name: 'command',
       message: 'Choose a command:',
-      choices: ['inventory', 'items', 'monsters', 'gather', 'craft', 'rest', 'exit'],
+      choices: ['craft', 'deposit', 'gather', 'hunt', 'inventory', 'items', 'monsters', 'rest', 'exit'],
     },
   ]);
 
   switch (command) {
-    case 'inventory':
-      await inventoryChoice();
-      break;
     case 'craft':
       await craftChoice();
+      break;
+    case 'deposit':
+      await emptyInventory(false);
       break;
     case 'gather':
       await gatherChoice();
       break;
-    case 'monsters':
-      await monstersChoice();
+    case 'hunt':
+      await huntChoice();
+      break;
+    case 'inventory':
+      await inventoryChoice();
       break;
     case 'items':
       await itemsChoice();
+      break;
+    case 'monsters':
+      await monstersChoice();
       break;
     case 'rest':
       await restChoice();
@@ -113,17 +119,22 @@ async function itemsChoice() {
 async function craftChoice() {
   const items = Model.items.filter(item => canCraft(item.code, true));
 
-  const { itemCode, quantity } = await inquirer.prompt([
+  const { itemCode } = await inquirer.prompt([
     {
       type: 'list',
       name: 'itemCode',
-      message: 'Choose item to craft:',
+      message: '[Craft] Choose item to craft:',
       choices: items.map(item => item.code),
     },
+  ]);
+
+  const maxQuantity = getCraftableQuantity(itemCode, true);
+
+  const { quantity } = await inquirer.prompt([
     {
       type: 'number',
       name: 'quantity',
-      message: 'Quantity:',
+      message: `[Craft] Quantity (max ${maxQuantity}):`,
       default: 1,
     },
   ]);
@@ -139,13 +150,13 @@ async function gatherChoice() {
     {
       type: 'list',
       name: 'resourceCode',
-      message: 'Choose resource to gather:',
+      message: '[Gather] Choose resource to gather:',
       choices: resources.map(resource => resource.code),
     },
     {
       type: 'number',
       name: 'quantity',
-      message: 'Quantity:',
+      message: '[Gather] Quantity:',
       default: 1,
     },
   ]);
@@ -158,6 +169,27 @@ async function gatherChoice() {
   }
 }
 
+async function huntChoice() {
+  const monsters = findKillableMonsters();
+
+  const { monsterCode, quantity } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'monsterCode',
+      message: '[Hunt] Choose a monster to hunt:',
+      choices: monsters.map(monster => monster.code),
+    },
+    {
+      type: 'number',
+      name: 'quantity',
+      message: '[Hunt] Quantity:',
+      default: 1,
+    },
+  ]);
+
+  await hunt(monsterCode, quantity);
+}
+
 async function restChoice(): Promise<void> {
   await rest();
 }
@@ -166,8 +198,6 @@ async function restChoice(): Promise<void> {
 
 (async () => {
   // Standard actions
-  Model.character = await fetchCharacter();
-  Model.bankItems = await fetchBankItems();
   Model.items = await fetchItems();
   Model.maps = await fetchMaps();
   Model.resources = await fetchResources();
@@ -175,6 +205,8 @@ async function restChoice(): Promise<void> {
 
   let exit = false;
   while (!exit) {
+    Model.character = await fetchCharacter();
+    Model.bankItems = await fetchBankItems();
     exit = await main();
   }
 })();
