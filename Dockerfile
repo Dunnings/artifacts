@@ -15,5 +15,4 @@ COPY . .
 # Install dependencies
 RUN bun install
 
-# Command to run your application
-CMD ["bun", "run", "src/background.ts"]
+CMD ["sh", "-c", "for character in Git Gina Milka Bernie Gat; do CHARACTER=$character bun run src/background.ts & sleep 1; done; wait"]

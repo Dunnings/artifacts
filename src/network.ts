@@ -1,20 +1,20 @@
 import fetch from 'node-fetch';
 import { config } from 'dotenv';
-import {
-  ICharacterData,
-  IApiCharacterResponse,
-  IItem,
-  IItemsAPIResponse,
-  IResource,
-  IResourceAPIResponse,
-  IMonster,
-  IMonsterAPIResponse,
-  IBankItem,
-  IBankAPIResponse,
-  IMap,
-  IMapAPIResponse,
-} from './interfaces';
 import { catchPromise } from './util';
+import {
+  CharacterResponseSchema,
+  CharacterSchema,
+  DataPage_ItemSchema_,
+  DataPage_MapSchema_,
+  DataPage_MonsterSchema_,
+  DataPage_ResourceSchema_,
+  DataPage_SimpleItemSchema_,
+  ItemSchema,
+  MapSchema,
+  MonsterSchema,
+  ResourceSchema,
+  SimpleItemSchema,
+} from './client';
 
 config();
 
@@ -28,19 +28,22 @@ const headers = {
 };
 const options = { headers, method: 'POST' };
 
-function createOptions(body?: string, method: 'POST' | 'GET' = 'POST') {
+function createOptions(body?: Record<string, any>, method: 'POST' | 'GET' = 'POST') {
   const newOptions = { ...options, method };
   if (!body) return newOptions;
-  return { ...newOptions, body };
+  return { ...newOptions, body: JSON.stringify(body) };
 }
 
-function createActionURL(action: string) {
-  return `${server}/my/${character}/action/${action}`;
-}
-
-export function actionCall(action: string, args?: any) {
-  const options = createOptions(JSON.stringify(args));
-  return fetch(createActionURL(action), options);
+export async function fetchAPIResponse<T>(url: string, options?: any, method: 'POST' | 'GET' = 'POST'): Promise<T> {
+  const fetchOptions = createOptions(options, method);
+  try {
+    const response = await fetch(url, fetchOptions);
+    const json = await response.json();
+    return json as T;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
 }
 
 export function characterCall() {
@@ -73,18 +76,18 @@ export function mapCall(page = 1) {
   return fetch(`${server}/maps?page=${page}&size=100`, options);
 }
 
-export async function fetchCharacter(): Promise<ICharacterData> {
-  const [response, error] = await catchPromise<IApiCharacterResponse>(characterCall());
+export async function fetchCharacter(): Promise<CharacterSchema> {
+  const [response, error] = await catchPromise<CharacterResponseSchema>(characterCall());
   if (error) return;
   return response.data;
 }
 
-export async function fetchItems(): Promise<IItem[]> {
-  const items: IItem[] = [];
+export async function fetchItems(): Promise<Array<ItemSchema>> {
+  const items: ItemSchema[] = [];
   let page = 1;
   let pages: number;
   do {
-    const [response, error] = await catchPromise<IItemsAPIResponse>(itemCall(page));
+    const [response, error] = await catchPromise<DataPage_ItemSchema_>(itemCall(page));
     if (error) return;
     response.data.forEach(element => {
       items.push(element);
@@ -95,12 +98,12 @@ export async function fetchItems(): Promise<IItem[]> {
   return items;
 }
 
-export async function fetchResources(): Promise<IResource[]> {
-  const items: IResource[] = [];
+export async function fetchResources(): Promise<Array<ResourceSchema>> {
+  const items: ResourceSchema[] = [];
   let page = 1;
   let pages: number;
   do {
-    const [response, error] = await catchPromise<IResourceAPIResponse>(resourceCall(page));
+    const [response, error] = await catchPromise<DataPage_ResourceSchema_>(resourceCall(page));
     if (error) return;
     response.data.forEach(element => {
       items.push(element);
@@ -111,12 +114,12 @@ export async function fetchResources(): Promise<IResource[]> {
   return items;
 }
 
-export async function fetchMonsters(): Promise<IMonster[]> {
-  const items: IMonster[] = [];
+export async function fetchMonsters(): Promise<MonsterSchema[]> {
+  const items: MonsterSchema[] = [];
   let page = 1;
   let pages: number;
   do {
-    const [response, error] = await catchPromise<IMonsterAPIResponse>(monsterCall(page));
+    const [response, error] = await catchPromise<DataPage_MonsterSchema_>(monsterCall(page));
     if (error) return;
     response.data.forEach((element: any) => {
       items.push(element);
@@ -127,12 +130,12 @@ export async function fetchMonsters(): Promise<IMonster[]> {
   return items;
 }
 
-export async function fetchBankItems(): Promise<IBankItem[]> {
-  const items: IBankItem[] = [];
+export async function fetchBankItems(): Promise<Array<SimpleItemSchema>> {
+  const items: SimpleItemSchema[] = [];
   let page = 1;
   let pages: number;
   do {
-    const [response, error] = await catchPromise<IBankAPIResponse>(bankItemsCall(page));
+    const [response, error] = await catchPromise<DataPage_SimpleItemSchema_>(bankItemsCall(page));
     if (error) return;
     response.data.forEach(element => {
       items.push(element);
@@ -143,12 +146,12 @@ export async function fetchBankItems(): Promise<IBankItem[]> {
   return items;
 }
 
-export async function fetchMaps(): Promise<Array<IMap>> {
-  const maps: IMap[] = [];
+export async function fetchMaps(): Promise<Array<MapSchema>> {
+  const maps: MapSchema[] = [];
   let page = 1;
   let pages: number;
   do {
-    const [response, error] = await catchPromise<IMapAPIResponse>(mapCall(page));
+    const [response, error] = await catchPromise<DataPage_MapSchema_>(mapCall(page));
     if (error) return;
     response.data.forEach(element => {
       maps.push(element);

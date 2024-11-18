@@ -7,14 +7,18 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "docker:build": "docker build -t artifacts .",
-    "docker:run": "docker run -d artifacts"
+    "docker:run": "docker run -d artifacts",
+    "types": "npx @hey-api/openapi-ts -i dumps/openapi.json -o src/client -c @hey-api/client-fetch"
   },
   "author": "David Dunnings",
   "dependencies": {
+    "@hey-api/client-fetch": "^0.4.4",
+    "@types/node-fetch": "^2.6.12",
     "chalk": "^5.3.0",
     "dotenv": "^16.4.5",
     "inquirer": "9.0.0",
-    "inquirer-interrupted-prompt": "^3.0.0"
+    "inquirer-interrupted-prompt": "^3.0.0",
+    "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@types/inquirer": "^9.0.7"

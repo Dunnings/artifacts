@@ -1,31 +1,26 @@
-import { waitForCooldown, gatherEverything, huntEverything } from './actions';
-import { findCraftableItems, findKillableMonsters, logQuantityDifferenceInItems } from './helper';
-import { IInventoryItem, IBankItem } from './interfaces';
-import { Model } from './model';
-import { fetchItems, fetchMaps, fetchBankItems, fetchCharacter, fetchResources, fetchMonsters } from './network';
+import { config } from 'dotenv';
+import { World } from './world';
+import { fetchItems, fetchMaps, fetchBankItems, fetchResources, fetchMonsters } from './network';
+import { Character } from './character';
+
+config();
 
 // Standard actions
-Model.items = await fetchItems();
-Model.maps = await fetchMaps();
-Model.bankItems = await fetchBankItems();
-Model.character = await fetchCharacter();
-Model.resources = await fetchResources();
-Model.monsters = await fetchMonsters();
 
-// Wait for any outstanding cooldowns
-await waitForCooldown();
+async function run() {
+  await new Promise(resolve => setTimeout(resolve, Math.random() * 3000));
+  World.init(await fetchBankItems(), await fetchItems(), await fetchMaps(), await fetchMonsters(), await fetchResources());
 
-while (true) {
-  Model.character = await fetchCharacter();
-  Model.bankItems = await fetchBankItems();
+  const character = new Character();
+  await character.init(process.env.CHARACTER);
+  while (true) {
+    await character.wait();
+    await character.gatherEverything();
+  }
+}
 
-  const beforeItems: (IInventoryItem | IBankItem)[] = JSON.parse(JSON.stringify([...Model.bankItems, ...Model.inventory]));
-
-  await gatherEverything();
-  await huntEverything();
-
-  Model.character = await fetchCharacter();
-  Model.bankItems = await fetchBankItems();
-  const afterItems = [...Model.bankItems, ...Model.inventory];
-  logQuantityDifferenceInItems(beforeItems, afterItems);
+try {
+  run();
+} catch (error) {
+  console.error(error);
 }
