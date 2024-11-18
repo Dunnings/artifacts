@@ -58,8 +58,8 @@ async function inventoryChoice() {
     {
       type: 'list',
       name: 'command',
-      message: '[Inventory] Choose a command:',
-      choices: ['player', 'player + bank'],
+      message: '[Inventory] Choose an inventory:',
+      choices: ['player', 'bank', 'all'],
     },
   ]);
 
@@ -72,7 +72,15 @@ async function inventoryChoice() {
           .join('\n'),
       );
       break;
-    case 'player + bank':
+    case 'bank':
+      console.log(
+        Model.items
+          .filter(item => getItemCount(item.code, true) - getItemCount(item.code) > 1)
+          .map(item => `${getItemCount(item.code, true) - getItemCount(item.code)}x ${item.code}`)
+          .join('\n'),
+      );
+      break;
+    case 'all':
       console.log(
         Model.items
           .filter(item => getItemCount(item.code, true) > 1)
@@ -143,6 +151,7 @@ async function craftChoice() {
   ]);
 
   await waitForCooldown();
+  await waitForCooldown();
   await craft(itemCode, quantity);
 }
 
@@ -164,11 +173,12 @@ async function gatherChoice() {
     },
   ]);
 
+  await waitForCooldown();
   await emptyInventory(false);
   for (let i = 0; i < quantity; i++) {
     await move(getNearestMapLocation(resourceCode));
     log(`Gathering ${resourceCode}`);
-    await doActionAndWait(Action.gathering);
+    await doActionAndWait(Action.gather);
   }
 }
 
@@ -190,6 +200,7 @@ async function huntChoice() {
     },
   ]);
 
+  await waitForCooldown();
   await hunt(monsterCode, quantity);
 }
 
