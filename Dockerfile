@@ -15,4 +15,4 @@ COPY . .
 # Install dependencies
 RUN bun install
 
-CMD ["bun" "run" "src/background.ts"]
+CMD ["bun", "run", "src/background.ts"]
