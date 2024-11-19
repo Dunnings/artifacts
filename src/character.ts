@@ -22,14 +22,13 @@ const SERVER_URL = 'https://api.artifactsmmo.com';
 export type CharacterAction = 'fight' | 'move' | 'rest' | 'gathering' | 'crafting' | 'unequip' | 'equip' | 'recycling';
 
 export class Character {
-  private characterName: string;
-  private characterData: CharacterSchema;
+  public characterData: CharacterSchema;
+  public characterName: string;
 
   public async init(characterName: string) {
     this.characterName = characterName;
     const data = await fetchAPIResponse<CharacterResponseSchema>(`${SERVER_URL}/characters/${this.characterName}`, undefined, 'GET');
     this.characterData = data.data;
-    await this.wait();
   }
 
   public get cooldownExpiration(): string {
@@ -65,70 +64,70 @@ export class Character {
     if (this.hp === this.maxHP) return;
     const data = await fetchAPIResponse<CharacterRestResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/rest`);
     this.characterData = data.data.character;
-    log(`[${this.characterName}] Restored ${data.data.hp_restored} hp`);
+    log(`${this.characterName} restored ${data.data.hp_restored} hp`);
     await this.wait();
   }
 
   public async equip(code: string, slot: string) {
     const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/equip`, { code, slot });
     this.characterData = data.data.character;
-    log(`[${this.characterName}] Equipped ${code} to ${slot}`);
+    log(`${this.characterName} equipped ${code} to ${slot}`);
     await this.wait();
   }
 
   public async recycle(code: string, quantity: string) {
     const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/recycle`, { code, quantity });
     this.characterData = data.data.character;
-    log(`[${this.characterName}] Recycled ${quantity}x ${code}`);
+    log(`${this.characterName} recycled ${quantity}x ${code}`);
     await this.wait();
   }
 
   public async gather() {
     const data = await fetchAPIResponse<SkillResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/gathering`);
     this.characterData = data.data.character;
-    log(`[${this.characterName}] Gathered ${data.data.details.items.map(item => `${item.quantity}x ${item.code}`).join(', ')} (${data.data.details.xp} xp)`);
+    log(`${this.characterName} gathered ${data.data.details.items.map(item => `${item.quantity}x ${item.code}`).join(', ')} (${data.data.details.xp} xp)`);
     await this.wait();
   }
 
   public async fight() {
     const data = await fetchAPIResponse<CharacterFightResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/fight`);
     this.characterData = data.data.character;
-    log(`[${this.characterName}] ${data.data.fight.result === 'win' ? 'Won' : 'Lost'} a fight (${data.data.fight.xp} xp)`);
+    log(`${this.characterName} ${data.data.fight.result === 'win' ? 'won' : 'lost'} a fight (${data.data.fight.xp} xp)`);
     await this.wait();
   }
 
   public async unequip(slot: string) {
     const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/unequip`, { slot });
     this.characterData = data.data.character;
-    log(`[${this.characterName}] Unequipped ${slot}`);
+    log(`${this.characterName} unequipped ${slot}`);
     await this.wait();
   }
 
   public async withdraw(code: string, quantity: number) {
     const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/bank/withdraw`, { code, quantity });
     this.characterData = data.data.character;
-    log(`[${this.characterName}] Withdrew ${quantity}x ${code}`);
+    log(`${this.characterName} withdrew ${quantity}x ${code}`);
     await this.wait();
   }
 
   public async withdrawGold(quantity: number) {
     const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/bank/withdraw/gold`, { quantity });
     this.characterData = data.data.character;
-    log(`[${this.characterName}] Withdrew ${quantity}x gold`);
+    log(`${this.characterName} withdrew ${quantity}x gold`);
     await this.wait();
   }
 
   public async deposit(code: string, quantity: number) {
     const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/bank/deposit`, { code, quantity });
     this.characterData = data.data.character;
-    log(`[${this.characterName}] Deposited ${quantity}x ${code}`);
+    log(`${this.characterName} deposited ${quantity}x ${code}`);
     await this.wait();
   }
 
   public async depositGold(quantity: number) {
     const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/bank/deposit/gold`, { quantity });
     this.characterData = data.data.character;
-    log(`[${this.characterName}] Deposited ${quantity}x gold`);
+    log(`${this.characterName} deposited ${quantity}x gold`);
     await this.wait();
   }
 
@@ -138,7 +137,14 @@ export class Character {
     const data = await fetchAPIResponse<CharacterMovementResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/move`, location);
     this.characterData = data.data.character;
     const contentCode = data.data.destination.content?.code;
-    log(`[${this.characterName}] Moved to ${data.data.destination.name}${contentCode ? ` [${contentCode}] ` : ' '}(x: ${location.x} y: ${location.y})`);
+    log(`${this.characterName} moved to ${data.data.destination.name}${contentCode ? ` [${contentCode}] ` : ' '}(x: ${location.x} y: ${location.y})`);
+    await this.wait();
+  }
+
+  public async craft(code: string, quantity: number) {
+    const data = await fetchAPIResponse<SkillResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/crafting`, { code, quantity });
+    this.characterData = data.data.character;
+    log(`${this.characterName} crafted ${quantity}x ${code}`);
     await this.wait();
   }
 
@@ -271,6 +277,49 @@ export class Character {
     await this.withdrawGold(World.bank.gold);
   }
 
+  public async craftItem(itemCode: string, quantity = 1): Promise<void> {
+    const craftingStation = World.getCraftingSkill(itemCode);
+    if (!craftingStation) {
+      warn(`Item ${itemCode} is not a craftable resource`);
+      return;
+    }
+
+    if (!this.hasCraftingIngredients(itemCode, quantity, true)) {
+      warn(`Not enough materials to craft ${itemCode} (bank + inventory)`);
+      return;
+    }
+
+    await this.depositInventoryIfFull(true);
+
+    let amountRemainingToCraft = quantity;
+    let thisIterationCraftableQuantity: number;
+
+    const craftingSpec = World.getCraftingRecipe(itemCode); // 1 gudgeon
+    const craftingItemQuantities = craftingSpec.items.map(item => item.quantity); // [1]
+    const totalQuantity = craftingItemQuantities.reduce((acc, val) => acc + val, 0); // 1
+
+    const maxCraftableQuantity = Math.floor(this.characterData.inventory_max_items / totalQuantity);
+
+    while (amountRemainingToCraft > 0) {
+      if (!this.hasCraftingIngredients(itemCode, maxCraftableQuantity)) {
+        await this.move(World.getNearestMapLocation('bank', this));
+        await this.depositInventoryIfFull(true);
+
+        thisIterationCraftableQuantity = Math.min(this.getCraftableQuantity(itemCode, true), maxCraftableQuantity);
+        thisIterationCraftableQuantity = Math.min(thisIterationCraftableQuantity, amountRemainingToCraft);
+
+        for (const item of craftingSpec.items) {
+          await this.withdraw(item.code, item.quantity * thisIterationCraftableQuantity);
+        }
+      }
+
+      await this.move(World.getNearestMapLocation(craftingStation, this));
+      await this.craft(itemCode, thisIterationCraftableQuantity);
+
+      amountRemainingToCraft -= thisIterationCraftableQuantity;
+    }
+  }
+
   /**
    * Private getters
    */
@@ -368,5 +417,22 @@ export class Character {
 
   public getHuntableMonsters(): Array<MonsterSchema> {
     return World.monsters.filter(monster => this.canKill(monster));
+  }
+
+  public getCraftableQuantity(itemCode: string, includeBankInventory = false): number {
+    const craftingSpec = World.getCraftingRecipe(itemCode);
+    if (!craftingSpec) {
+      warn(`Item ${itemCode} is not craftable`);
+      return 0;
+    }
+    if (!this.hasCraftingLevel(itemCode)) {
+      warn(`Skill level too low to craft ${itemCode}. Required: ${craftingSpec.level}. Current: ${this.characterData[`${craftingSpec.skill}_level`]}`);
+      return 0;
+    }
+    const maxCraftable = craftingSpec.items.reduce((acc, craftingIngredient) => {
+      const quantity = Math.floor(this.itemQuantity(craftingIngredient.code, includeBankInventory) / craftingIngredient.quantity);
+      return quantity < acc ? quantity : acc;
+    }, Infinity);
+    return maxCraftable;
   }
 }

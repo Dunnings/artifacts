@@ -37,7 +37,7 @@ export class World {
   }
 
   public static getCraftingRecipe(itemCode: string): CraftSchema {
-    return this.allItems.find(item => item.code === itemCode).craft;
+    return this.allItems.find(item => item.code === itemCode)?.craft;
   }
 
   public static getItemResource(itemCode: string, character?: Character, limitByLevel = true): string {
