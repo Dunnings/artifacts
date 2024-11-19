@@ -11,7 +11,6 @@ import {
   MonsterSchema,
   SkillResponseSchema,
   TaskResponseSchema,
-  ItemSlots,
   XY,
   ItemSlot,
 } from './client';
@@ -68,9 +67,9 @@ export class Character {
     log(`${this.name} restored ${data.data.hp_restored} hp`);
   }
 
-  public async equip(code: string, slot: ItemSlot) {
+  public async equip(code: string, slot: ItemSlot, quantity = 1) {
     await this.wait();
-    const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.name}/action/equip`, { code, slot });
+    const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.name}/action/equip`, { code, slot, quantity });
     this.characterData = data.data.character;
     log(`${this.name} equipped ${code} to ${slot}`);
   }
@@ -325,7 +324,11 @@ export class Character {
   }
 
   public async depositAllGearInBank() {
-    for (const slot of ItemSlots) {
+    const itemSlots = Object.keys(this.characterData)
+      .filter(key => key.endsWith('_slot'))
+      .map(val => val.replace('_slot', '') as ItemSlot);
+
+    for (const slot of itemSlots) {
       await this.depositInventoryIfFull();
       await this.unequip(slot);
     }
@@ -337,8 +340,13 @@ export class Character {
     await this.depositAllGearInBank();
     await World.updateBank();
 
-    for (const slot of ItemSlots) {
-      const availableItems = World.bankItems.filter(item => World.allItems.find(val => val.code === item.code).type === slot).filter(item => this.canEquip(item.code));
+    const itemSlots = Object.keys(this.characterData)
+      .filter(key => key.endsWith('_slot'))
+      .map(val => val.replace('_slot', '') as ItemSlot);
+
+    for (const slot of itemSlots) {
+      const slotWithoutNumber = slot.replace(/\d/g, '');
+      const availableItems = World.bankItems.filter(item => World.allItems.find(val => val.code === item.code).type === slotWithoutNumber).filter(item => this.canEquip(item.code));
       const bestItem = availableItems.sort((a, b) => {
         const aLevel = World.getItemLevel(a.code);
         const bLevel = World.getItemLevel(b.code);
@@ -349,8 +357,12 @@ export class Character {
         continue;
       }
 
-      await this.withdraw(bestItem.code, 1);
-      await this.equip(bestItem.code, slot);
+      let quantity = 1;
+      if (slotWithoutNumber === 'utility') {
+        quantity = Math.min(100, this.itemQuantity(bestItem.code, true));
+      }
+      await this.withdraw(bestItem.code, quantity);
+      await this.equip(bestItem.code, slot, quantity);
     }
   }
 

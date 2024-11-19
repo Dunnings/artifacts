@@ -34,7 +34,7 @@ async function main(): Promise<boolean> {
         type: 'list',
         name: 'command',
         message: 'Choose a command:',
-        choices: ['craft', 'deposit', 'equip', 'gather', 'hunt', 'inventory', 'items', 'monsters', 'recycle', 'rest', 'unequip', 'withdraw', 'exit'],
+        choices: ['craft', 'deposit', 'equip', 'gather', 'hunt', 'inventory', 'items', 'monsters', 'recycle', 'rest', 'suitup', 'unequip', 'withdraw', 'exit'],
       },
     ]);
 
@@ -68,6 +68,9 @@ async function main(): Promise<boolean> {
         break;
       case 'rest':
         await restChoice();
+        break;
+      case 'suitup':
+        await suitUpChoice();
         break;
       case 'unequip':
         await unequipChoice();
@@ -402,6 +405,15 @@ async function withdrawChoice() {
   }
 }
 
+async function suitUpChoice() {
+  try {
+    const character = await getCharacterName('SuitUp');
+    await character.equipBestGear();
+  } catch (error) {
+    console.log('');
+  }
+}
+
 (async () => {
   await World.init();
 
@@ -409,6 +421,7 @@ async function withdrawChoice() {
     const character = new Character();
     await character.init(characterName);
     characters.push(character);
+    await character.equipBestGear();
   }
 
   let exit = false;
