@@ -12,8 +12,7 @@ async function run() {
     const character = new Character();
     await character.init(characterName);
     while (true) {
-      await character.wait();
-      await character.huntStrongest();
+      await character.gatherItem('copper_ore');
     }
   });
 

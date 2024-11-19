@@ -212,7 +212,6 @@ async function craftChoice() {
       },
     ]);
 
-    await character.wait();
     await character.craftItem(itemCode, quantity);
   } catch (error) {
     console.log('');
@@ -222,7 +221,7 @@ async function craftChoice() {
 async function gatherChoice() {
   try {
     const character = await getCharacterName('Gather');
-    const resources = World.getAllGatherableResources(this);
+    const resources = World.getAllGatherableResources(character);
 
     const { resourceCode, quantity } = await inquirer.prompt([
       {

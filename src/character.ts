@@ -62,90 +62,90 @@ export class Character {
 
   public async rest() {
     if (this.hp === this.maxHP) return;
+    await this.wait();
     const data = await fetchAPIResponse<CharacterRestResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/rest`);
     this.characterData = data.data.character;
     log(`${this.characterName} restored ${data.data.hp_restored} hp`);
-    await this.wait();
   }
 
   public async equip(code: string, slot: string) {
+    await this.wait();
     const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/equip`, { code, slot });
     this.characterData = data.data.character;
     log(`${this.characterName} equipped ${code} to ${slot}`);
-    await this.wait();
   }
 
   public async recycle(code: string, quantity: string) {
+    await this.wait();
     const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/recycle`, { code, quantity });
     this.characterData = data.data.character;
     log(`${this.characterName} recycled ${quantity}x ${code}`);
-    await this.wait();
   }
 
   public async gather() {
+    await this.wait();
     const data = await fetchAPIResponse<SkillResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/gathering`);
     this.characterData = data.data.character;
     log(`${this.characterName} gathered ${data.data.details.items.map(item => `${item.quantity}x ${item.code}`).join(', ')} (${data.data.details.xp} xp)`);
-    await this.wait();
   }
 
   public async fight() {
+    await this.wait();
     const data = await fetchAPIResponse<CharacterFightResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/fight`);
     this.characterData = data.data.character;
     log(`${this.characterName} ${data.data.fight.result === 'win' ? 'won' : 'lost'} a fight (${data.data.fight.xp} xp)`);
-    await this.wait();
   }
 
   public async unequip(slot: string) {
+    await this.wait();
     const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/unequip`, { slot });
     this.characterData = data.data.character;
     log(`${this.characterName} unequipped ${slot}`);
-    await this.wait();
   }
 
   public async withdraw(code: string, quantity: number) {
+    await this.wait();
     const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/bank/withdraw`, { code, quantity });
     this.characterData = data.data.character;
     log(`${this.characterName} withdrew ${quantity}x ${code}`);
-    await this.wait();
   }
 
   public async withdrawGold(quantity: number) {
+    await this.wait();
     const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/bank/withdraw/gold`, { quantity });
     this.characterData = data.data.character;
     log(`${this.characterName} withdrew ${quantity}x gold`);
-    await this.wait();
   }
 
   public async deposit(code: string, quantity: number) {
+    await this.wait();
     const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/bank/deposit`, { code, quantity });
     this.characterData = data.data.character;
     log(`${this.characterName} deposited ${quantity}x ${code}`);
-    await this.wait();
   }
 
   public async depositGold(quantity: number) {
+    await this.wait();
     const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/bank/deposit/gold`, { quantity });
     this.characterData = data.data.character;
     log(`${this.characterName} deposited ${quantity}x gold`);
-    await this.wait();
   }
 
   public async move(location: XY) {
     if (this.isAtLocation(location)) return;
 
+    await this.wait();
     const data = await fetchAPIResponse<CharacterMovementResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/move`, location);
     this.characterData = data.data.character;
     const contentCode = data.data.destination.content?.code;
     log(`${this.characterName} moved to ${data.data.destination.name}${contentCode ? ` [${contentCode}] ` : ' '}(x: ${location.x} y: ${location.y})`);
-    await this.wait();
   }
 
   public async craft(code: string, quantity: number) {
+    await this.wait();
     const data = await fetchAPIResponse<SkillResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/crafting`, { code, quantity });
     this.characterData = data.data.character;
     log(`${this.characterName} crafted ${quantity}x ${code}`);
-    await this.wait();
   }
 
   /**
@@ -169,9 +169,7 @@ export class Character {
     for (const item of this.inventory) {
       if (item.quantity === 0) continue;
       await this.move(World.getNearestMapLocation('bank', this));
-      await this.wait();
       await this.deposit(item.code, item.quantity);
-      await this.wait();
     }
   }
 
