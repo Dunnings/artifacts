@@ -3012,3 +3012,10 @@ export type GenerateTokenTokenPostError = unknown;
 export type GetStatusGetResponse = StatusResponseSchema;
 
 export type GetStatusGetError = unknown;
+
+export type ErrorResponseSchema = {
+  error: {
+    code: number;
+    message: string;
+  };
+};

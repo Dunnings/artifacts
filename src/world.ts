@@ -1,5 +1,6 @@
 import { Character } from './character';
-import { ItemSchema, MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema, CraftSchema, XY } from './client';
+import { ItemSchema, MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema, CraftSchema, XY, BankSchema } from './client';
+import { fetchBank, fetchBankItems, fetchItems, fetchMaps, fetchMonsters, fetchResources } from './network';
 import { warn } from './util';
 
 export class World {
@@ -14,19 +15,25 @@ export class World {
   public static monsterCodes: Array<string>;
   public static equipSlots: Array<string>;
   public static characterName: string = process.env.CHARACTER;
+  public static bank: BankSchema;
 
-  public static init(bankItems: Array<SimpleItemSchema>, allItems: Array<ItemSchema>, maps: Array<MapSchema>, monsters: Array<MonsterSchema>, resources: Array<ResourceSchema>): void {
-    World.bankItems = bankItems;
-    World.allItems = allItems;
-    World.maps = maps;
-    World.monsters = monsters;
-    World.resources = resources;
+  public static async init() {
+    World.bankItems = await fetchBankItems();
+    World.allItems = await fetchItems();
+    World.maps = await fetchMaps();
+    World.monsters = await fetchMonsters();
+    World.resources = await fetchResources();
+    World.bank = await fetchBank();
 
     World.itemCodes = Array.from(new Set(World.allItems.map(item => item.code).filter(Boolean)));
     World.resourceCodes = Array.from(new Set(World.resources.map(item => item.code).filter(Boolean)));
     World.skills = Array.from(new Set(World.allItems.map(item => item.craft?.skill).filter(Boolean)));
     World.monsterCodes = Array.from(new Set(World.monsters.map(monster => monster.code).filter(Boolean)));
     World.monsterCodes = Array.from(new Set(World.monsters.map(monster => monster.code).filter(Boolean)));
+  }
+
+  public static async updateBank() {
+    World.bank = await fetchBank();
   }
 
   public static getCraftingRecipe(itemCode: string): CraftSchema {

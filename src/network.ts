@@ -2,6 +2,8 @@ import fetch from 'node-fetch';
 import { config } from 'dotenv';
 import { catchPromise } from './util';
 import {
+  BankResponseSchema,
+  BankSchema,
   CharacterResponseSchema,
   CharacterSchema,
   DataPage_ItemSchema_,
@@ -9,6 +11,7 @@ import {
   DataPage_MonsterSchema_,
   DataPage_ResourceSchema_,
   DataPage_SimpleItemSchema_,
+  ErrorResponseSchema,
   ItemSchema,
   MapSchema,
   MonsterSchema,
@@ -38,7 +41,11 @@ export async function fetchAPIResponse<T>(url: string, options?: any, method: 'P
   const fetchOptions = createOptions(options, method);
   try {
     const response = await fetch(url, fetchOptions);
-    const json = await response.json();
+    const json = (await response.json()) as T | ErrorResponseSchema;
+    if ('error' in (json as ErrorResponseSchema)) {
+      console.error(url, options);
+      throw new Error((json as ErrorResponseSchema).error.message);
+    }
     return json as T;
   } catch (error) {
     console.error(error);
@@ -76,8 +83,19 @@ export function mapCall(page = 1) {
   return fetch(`${server}/maps?page=${page}&size=100`, options);
 }
 
+export function bankCall() {
+  const options = createOptions(undefined, 'GET');
+  return fetch(`${server}/my/bank`, options);
+}
+
 export async function fetchCharacter(): Promise<CharacterSchema> {
   const [response, error] = await catchPromise<CharacterResponseSchema>(characterCall());
+  if (error) return;
+  return response.data;
+}
+
+export async function fetchBank(): Promise<BankSchema> {
+  const [response, error] = await catchPromise<BankResponseSchema>(bankCall());
   if (error) return;
   return response.data;
 }
