@@ -19,8 +19,6 @@ import { log, time, warn } from './util';
 
 const SERVER_URL = 'https://api.artifactsmmo.com';
 
-export type CharacterAction = 'fight' | 'move' | 'rest' | 'gathering' | 'crafting' | 'unequip' | 'equip' | 'recycling';
-
 export class Character {
   public characterData: CharacterSchema;
   public characterName: string;
@@ -77,7 +75,7 @@ export class Character {
 
   public async recycle(code: string, quantity: string) {
     await this.wait();
-    const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/recycle`, { code, quantity });
+    const data = await fetchAPIResponse<TaskResponseSchema>(`${SERVER_URL}/my/${this.characterName}/action/recycling`, { code, quantity });
     this.characterData = data.data.character;
     log(`${this.characterName} recycled ${quantity}x ${code}`);
   }
