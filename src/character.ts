@@ -183,7 +183,7 @@ export class Character {
   }
 
   public async gatherItem(code: string, quantity = 1) {
-    const resource = World.getItemResource(code);
+    const resource = World.getItemResource(code, this);
 
     for (let i = 0; i < quantity; i++) {
       await this.depositInventoryIfFull();
