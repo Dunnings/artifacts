@@ -34,14 +34,19 @@ export class World {
 
   public static async updateBank() {
     World.bank = await fetchBank();
+    World.bankItems = await fetchBankItems();
+  }
+
+  public static getItemLevel(itemCode: string): number {
+    return this.allItems.find(val => val.code === itemCode).level;
   }
 
   public static getCraftingRecipe(itemCode: string): CraftSchema {
-    return this.allItems.find(item => item.code === itemCode)?.craft;
+    return this.allItems.find(val => val.code === itemCode)?.craft;
   }
 
   public static getItemResource(itemCode: string, character?: Character, limitByLevel = true): string {
-    const matchingResources = this.resources.filter(item => item.drops.find(drop => drop.code === itemCode) && (!limitByLevel || character.skillLevel(item.skill) >= item.level));
+    const matchingResources = this.resources.filter(item => item.drops.find(val => val.code === itemCode) && (!limitByLevel || character.skillLevel(item.skill) >= item.level));
     if (matchingResources.length === 0) {
       return;
     }
@@ -53,7 +58,7 @@ export class World {
   }
 
   public static getCraftingSkill(itemCode: string): string {
-    return this.allItems.find(item => item.code === itemCode).craft?.skill;
+    return this.allItems.find(val => val.code === itemCode).craft?.skill;
   }
 
   public static getNearestMap(resource: string, character: Character): MapSchema {

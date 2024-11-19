@@ -24,7 +24,7 @@ async function getCharacterName(choice: string): Promise<Character> {
       choices: characterNames,
     },
   ]);
-  return characters.find(char => char.characterName === characterName);
+  return characters.find(val => val.name === characterName);
 }
 
 async function main(): Promise<boolean> {
@@ -301,7 +301,7 @@ async function recycleChoice() {
       {
         type: 'number',
         name: 'quantity',
-        message: `[Recycle] Quantity (max ${character.inventory.find(item => item.code === itemCode).quantity}):`,
+        message: `[Recycle] Quantity (max ${character.inventory.find(val => val.code === itemCode).quantity}):`,
         default: 1,
       },
     ]);
