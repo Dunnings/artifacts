@@ -15,21 +15,16 @@ async function run() {
     await character.init(characterName);
   }
 
-  // let promises = [];
+  let promises = [];
 
-  // promises = characters.map(async (character, index) => {
-  //   await character.depositAllGearInBank();
-  //   await character.depositInventoryIfFull(true);
-  // });
-
-  // await Promise.all(promises);
-
-  for (const character of characters) {
+  promises = characters.map(async (character, index) => {
     while (true) {
       await character.depositInventoryIfFull(true);
       await character.huntEverything(true);
     }
-  }
+  });
+
+  await Promise.all(promises);
 }
 
 try {
