@@ -5,6 +5,7 @@ import { config } from 'dotenv';
 import { CharacterSchema, ItemSlot } from './client';
 import { Character } from './character';
 import { World } from './world';
+import { fetchGE } from './network';
 
 InterruptedPrompt.fromAll(inquirer);
 
@@ -164,28 +165,49 @@ async function itemsChoice() {
   try {
     const character = await getCharacterName('Items');
 
-    const items = World.allItems.map(item => {
-      return {
-        isCraftable: item.craft !== undefined,
-        highEnoughLevel: character.hasCraftingLevel(item.code),
-        canCraft: item.craft !== undefined && character.canCraft(item.code, true),
+    const items = [];
+
+    for (const item of World.allItems) {
+      let price: number = undefined;
+      const isCraftable = item.craft !== undefined;
+      const canEquipLevel = character.canEquip(item.code);
+      const canCraftLevel = character.hasCraftingLevel(item.code);
+      const canCraft = isCraftable && character.canCraft(item.code, true);
+      if (canEquipLevel) {
+        const gePrices = await fetchGE(item.code);
+        gePrices.sort((a, b) => a.price - b.price);
+        price = gePrices.length > 0 ? gePrices[0].price : undefined;
+      }
+      items.push({
+        isCraftable,
+        canEquipLevel,
+        canCraftLevel,
+        canCraft,
+        price,
         item,
-      };
-    });
+      });
+    }
 
     items.sort((a, b) => {
+      if (a.canEquipLevel && !b.canEquipLevel) return -1;
       if (a.canCraft && !b.canCraft) return -1;
       if (!a.canCraft && b.canCraft) return 1;
-      if (a.highEnoughLevel && !b.highEnoughLevel) return -1;
+      if (a.canCraftLevel && !b.canCraftLevel) return -1;
       return 0;
     });
 
     console.log(
       items
-        .map(item => `${item.item.code} - ${item.highEnoughLevel ? chalk.green('✅ level') : chalk.red('❌ level')} ${item.canCraft ? chalk.green('✅ ingredients') : chalk.red('❌ ingredients')}`)
+        .map(
+          item =>
+            `${item.item.code} - ${item.price ? `${item.price} ` : ''}${item.canCraftLevel ? chalk.green('✅ craftable') : chalk.red('❌ not craftable')} ${
+              item.canEquipLevel ? chalk.green('✅ level') : chalk.red('❌ level')
+            } ${item.canCraft ? chalk.green('✅ ingredients') : chalk.red('❌ ingredients')}`,
+        )
         .join('\n'),
     );
   } catch (error) {
+    console.error(error);
     console.log(' ');
   }
 }
@@ -421,7 +443,6 @@ async function suitUpChoice() {
     const character = new Character();
     await character.init(characterName);
     characters.push(character);
-    await character.equipBestGear();
   }
 
   let exit = false;

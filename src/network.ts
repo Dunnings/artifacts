@@ -6,12 +6,14 @@ import {
   BankSchema,
   CharacterResponseSchema,
   CharacterSchema,
+  DataPage_GEOrderSchema_,
   DataPage_ItemSchema_,
   DataPage_MapSchema_,
   DataPage_MonsterSchema_,
   DataPage_ResourceSchema_,
   DataPage_SimpleItemSchema_,
   ErrorResponseSchema,
+  GEOrderSchema,
   ItemSchema,
   MapSchema,
   MonsterSchema,
@@ -88,6 +90,11 @@ export function bankCall() {
   return fetch(`${server}/my/bank`, options);
 }
 
+export function geOrdersCall(itemCode: string, page = 1) {
+  const options = createOptions(undefined, 'GET');
+  return fetch(`${server}/grandexchange/orders?code=${itemCode}&page=${page}`, options);
+}
+
 export async function fetchCharacter(): Promise<CharacterSchema> {
   const [response, error] = await catchPromise<CharacterResponseSchema>(characterCall());
   if (error) return;
@@ -98,6 +105,22 @@ export async function fetchBank(): Promise<BankSchema> {
   const [response, error] = await catchPromise<BankResponseSchema>(bankCall());
   if (error) return;
   return response.data;
+}
+
+export async function fetchGE(itemCode: string): Promise<Array<GEOrderSchema>> {
+  const items: GEOrderSchema[] = [];
+  let page = 1;
+  let pages: number;
+  do {
+    const [response, error] = await catchPromise<DataPage_GEOrderSchema_>(geOrdersCall(itemCode, page));
+    if (error) return;
+    response.data.forEach(element => {
+      items.push(element);
+    });
+    pages = response.pages;
+    page = response.page + 1;
+  } while (page < pages);
+  return items;
 }
 
 export async function fetchItems(): Promise<Array<ItemSchema>> {
