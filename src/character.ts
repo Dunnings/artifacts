@@ -13,10 +13,11 @@ import {
   TaskResponseSchema,
   XY,
   ItemSlot,
+  SimpleItemSchema,
 } from './client';
 import { World } from './world';
 import { fetchAPIResponse } from './network';
-import { log, warn } from './util';
+import { info, log, warn } from './util';
 
 const SERVER_URL = 'https://api.artifactsmmo.com';
 
@@ -196,8 +197,8 @@ export class Character {
     }
   }
 
-  public async huntStrongest(): Promise<void> {
-    const killableMonsters = this.getHuntableMonsters();
+  public async huntEverything(onlyStrongest = true): Promise<void> {
+    let killableMonsters = this.getHuntableMonsters();
     killableMonsters.sort((a, b) => b.level - a.level);
 
     if (killableMonsters.length === 0) {
@@ -205,22 +206,8 @@ export class Character {
       return;
     }
 
-    await this.depositInventoryIfFull(true);
-
-    while (this.inventorySlotsRemaining() > 5) {
-      await this.move(World.getNearestMapLocation(killableMonsters[0].code, this));
-      await this.rest();
-      await this.fight();
-    }
-  }
-
-  public async huntEverything(): Promise<void> {
-    const killableMonsters = this.getHuntableMonsters();
-    killableMonsters.sort((a, b) => b.level - a.level);
-
-    if (killableMonsters.length === 0) {
-      warn('No killable monsters found');
-      return;
+    if (onlyStrongest) {
+      killableMonsters = [killableMonsters[0]];
     }
 
     await this.depositInventoryIfFull(true);
@@ -280,16 +267,17 @@ export class Character {
     await this.withdrawGold(World.bank.gold);
   }
 
-  public async craftItem(itemCode: string, quantity = 1): Promise<void> {
+  public async craftItem(itemCode: string, quantity = 1, recursive = true): Promise<void> {
     const craftingStation = World.getCraftingSkill(itemCode);
     if (!craftingStation) {
-      warn(`Item ${itemCode} is not a craftable resource`);
       return;
     }
 
-    if (!this.hasCraftingIngredients(itemCode, quantity, true)) {
-      warn(`Not enough materials to craft ${itemCode} (bank + inventory)`);
-      return;
+    if (!this.hasCraftingIngredients(itemCode, quantity, true, false)) {
+      const ingredients = World.getCraftingRecipe(itemCode).items;
+      for (const ingredient of ingredients) {
+        await this.craftItem(ingredient.code, ingredient.quantity * quantity, recursive);
+      }
     }
 
     await this.depositInventoryIfFull(true);
@@ -304,7 +292,7 @@ export class Character {
     const maxCraftableQuantity = Math.floor(this.characterData.inventory_max_items / totalQuantity);
 
     while (amountRemainingToCraft > 0) {
-      if (!this.hasCraftingIngredients(itemCode, maxCraftableQuantity)) {
+      if (!this.hasCraftingIngredients(itemCode, maxCraftableQuantity, false, false)) {
         await this.move(World.getNearestMapLocation('bank', this));
         await this.depositInventoryIfFull(true);
 
@@ -350,6 +338,11 @@ export class Character {
       const bestItem = availableItems.sort((a, b) => {
         const aLevel = World.getItemLevel(a.code);
         const bLevel = World.getItemLevel(b.code);
+        if (aLevel === bLevel) {
+          const aTotal = World.allItems.find(val => val.code === a.code).effects.reduce((acc, val) => val.value + acc, 0);
+          const bTotal = World.allItems.find(val => val.code === b.code).effects.reduce((acc, val) => val.value + acc, 0);
+          return bTotal - aTotal;
+        }
         return bLevel - aLevel;
       })[0];
 
@@ -363,6 +356,31 @@ export class Character {
       }
       await this.withdraw(bestItem.code, quantity);
       await this.equip(bestItem.code, slot, quantity);
+    }
+  }
+
+  public async gatherOrCraft(itemCode: string, quantity = 1): Promise<void> {
+    // Create a list of all the ingredients needed to craft the item
+    const shoppingList = this.createShoppingList(itemCode, quantity);
+    info(
+      `Shopping list for ${quantity}x ${itemCode}: ${Object.keys(shoppingList)
+        .map(key => `${shoppingList[key as string]}x ${key}`)
+        .join(', ')}`,
+    );
+
+    // Gather all the ingredients needed to craft the item
+    for (const ingredientCode of Object.keys(shoppingList) as string[]) {
+      const quantity = shoppingList[ingredientCode];
+      const needed = quantity - this.itemQuantity(ingredientCode, true);
+      while (this.itemQuantity(ingredientCode, true) < needed) {
+        await this.gatherItem(ingredientCode);
+      }
+    }
+
+    const craftingRecipe = World.getCraftingRecipe(itemCode);
+
+    if (craftingRecipe) {
+      await this.craftItem(itemCode, quantity);
     }
   }
 
@@ -397,33 +415,71 @@ export class Character {
     return this.itemQuantity(itemCode, includeBank) >= quantity;
   }
 
-  public hasCraftingIngredients(itemCode: string, quantity = 1, includeBank = false): boolean {
-    const craftingSpec = World.getCraftingRecipe(itemCode);
-    return craftingSpec.items.every(item => this.itemQuantity(item.code, includeBank) >= item.quantity * quantity);
-  }
-
-  public hasCraftingLevel(itemCode: string, iterative = false): boolean {
+  public hasCraftingLevel(itemCode: string): boolean {
     const craftingSpec = World.getCraftingRecipe(itemCode);
 
     if (!craftingSpec) return;
 
-    if (iterative && craftingSpec?.items) {
-      return craftingSpec.items.every(item => this.hasCraftingLevel(item.code, true) !== false);
+    if (craftingSpec?.items) {
+      return craftingSpec.items.every(item => this.hasCraftingLevel(item.code) !== false);
     }
 
     return this.skillLevel(craftingSpec.skill) >= craftingSpec.level;
   }
 
-  public canCraft(itemCode: string, includeBank = false): boolean {
-    if (!World.getCraftingRecipe(itemCode)) return false;
-    return this.hasCraftingLevel(itemCode) && this.hasCraftingIngredients(itemCode, 1, includeBank);
+  public hasCraftingIngredients(itemCode: string, quantity = 1, includeBank = true, recursive = true, itemDatabase?: Map<string, number>): boolean {
+    if (!itemDatabase) {
+      itemDatabase = new Map();
+      this.inventory.forEach(item => itemDatabase.set(item.code, item.quantity));
+      if (includeBank) {
+        World.bankItems.forEach(item => {
+          const itemCount = itemDatabase.has(item.code) ? itemDatabase.get(item.code) : 0;
+          itemDatabase.set(item.code, itemCount + item.quantity);
+        });
+      }
+    }
+
+    const craftingSpec = World.getCraftingRecipe(itemCode);
+
+    const databaseQuantity = itemDatabase.get(itemCode) ?? 0;
+
+    // if it's a base item, return if we have enough of the base item
+    if (!craftingSpec) {
+      itemDatabase.set(itemCode, databaseQuantity - quantity);
+      return databaseQuantity >= quantity;
+    }
+
+    // if it's a crafted item and we have enough of it, return true
+    if (databaseQuantity >= quantity) {
+      itemDatabase.set(itemCode, databaseQuantity - quantity);
+      return true;
+    }
+
+    // if it's a crafted item and we don't have enough of it, check if we have enough of the ingredients
+    return craftingSpec.items.every(ingredient => {
+      const ingredientCraftingSpec = World.getCraftingRecipe(ingredient.code);
+      const databaseQuantity = itemDatabase.get(ingredient.code) ?? 0;
+      if (databaseQuantity >= ingredient.quantity * quantity) {
+        itemDatabase.set(ingredient.code, databaseQuantity - ingredient.quantity * quantity);
+        return true;
+      }
+      if (ingredientCraftingSpec && recursive) {
+        return this.hasCraftingIngredients(ingredient.code, ingredient.quantity * quantity, includeBank, recursive, itemDatabase) !== false;
+      }
+      return false;
+    });
+  }
+
+  public canCraft(itemCode: string, includeBank = true, recursive = true, itemDatabase?: Map<string, number>): boolean {
+    if (!World.getCraftingRecipe(itemCode)) return;
+    return this.hasCraftingLevel(itemCode) && this.hasCraftingIngredients(itemCode, 1, includeBank, recursive, itemDatabase);
   }
 
   public canEquip(itemCode: string): boolean {
     return this.characterData.level >= World.getItemLevel(itemCode);
   }
 
-  public getCraftableItems(includeBank = false): Array<string> {
+  public getCraftableItems(includeBank = true): Array<string> {
     return World.itemCodes.filter(item => this.canCraft(item, includeBank));
   }
 
@@ -469,7 +525,7 @@ export class Character {
     return World.monsters.filter(monster => this.canKill(monster));
   }
 
-  public getCraftableQuantity(itemCode: string, includeBankInventory = false): number {
+  public getCraftableQuantity(itemCode: string, includeBankInventory = false, recursive = true): number {
     const craftingSpec = World.getCraftingRecipe(itemCode);
     if (!craftingSpec) {
       warn(`Item ${itemCode} is not craftable`);
@@ -484,5 +540,23 @@ export class Character {
       return quantity < acc ? quantity : acc;
     }, Infinity);
     return maxCraftable;
+  }
+
+  public createShoppingList(itemCode: string, quantity: number = 1, shoppingList?: Record<string, number>): Record<string, number> {
+    const isTopLevel = shoppingList === undefined;
+    if (isTopLevel) shoppingList = {} as Record<string, number>;
+
+    const craftingSpec = World.getCraftingRecipe(itemCode);
+    if (!craftingSpec || (!isTopLevel && this.itemQuantity(itemCode, true) > quantity)) {
+      if (!shoppingList[itemCode]) shoppingList[itemCode] = 0;
+      shoppingList[itemCode] = shoppingList[itemCode] + quantity;
+      return shoppingList;
+    }
+
+    for (const craftingItem of craftingSpec.items) {
+      shoppingList = this.createShoppingList(craftingItem.code, craftingItem.quantity * quantity, shoppingList);
+    }
+
+    return shoppingList;
   }
 }

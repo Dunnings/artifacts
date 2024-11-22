@@ -13,20 +13,23 @@ async function run() {
     const character = new Character();
     characters.push(character);
     await character.init(characterName);
-    await character.depositAllGearInBank();
   }
+
+  // let promises = [];
+
+  // promises = characters.map(async (character, index) => {
+  //   await character.depositAllGearInBank();
+  //   await character.depositInventoryIfFull(true);
+  // });
+
+  // await Promise.all(promises);
 
   for (const character of characters) {
-    await character.equipBestGear();
-  }
-
-  const promises = characters.map(async (character, index) => {
     while (true) {
-      await character.huntStrongest();
+      await character.depositInventoryIfFull(true);
+      await character.huntEverything(true);
     }
-  });
-
-  await Promise.all(promises);
+  }
 }
 
 try {

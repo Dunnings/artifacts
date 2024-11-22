@@ -13,19 +13,19 @@ config();
 
 const characterNames = process.env.CHARACTERS.split(',');
 
-const characters: Character[] = [];
+const characters: Map<string, Character> = new Map();
 
 async function getCharacterName(choice: string): Promise<Character> {
-  if (characters.length === 1) return characters[0];
+  // if (characters.size === 1) return Object.values(characters)[0];
   const { characterName } = await inquirer.prompt([
     {
       type: 'list',
-      name: 'command',
+      name: 'characterName',
       message: `[${choice}] Choose a character:`,
       choices: characterNames,
     },
   ]);
-  return characters.find(val => val.name === characterName);
+  return characters.get(characterName);
 }
 
 async function main(): Promise<boolean> {
@@ -157,7 +157,8 @@ async function monstersChoice() {
 
     console.log(monsters.map(monster => `${monster.monster.code} - ${monster.canKill ? chalk.green('killable') : chalk.red('not killable')}`).join('\n'));
   } catch (error) {
-    console.log('');
+    if (error === 'EVENT_INTERRUPTED') return;
+    console.log(error);
   }
 }
 
@@ -215,14 +216,14 @@ async function itemsChoice() {
 async function craftChoice() {
   try {
     const character = await getCharacterName('Craft');
-    const items = World.allItems.filter(item => character.canCraft(item.code, true));
+    const items = character.getCraftableItems(true);
 
     const { itemCode } = await inquirer.prompt([
       {
         type: 'list',
         name: 'itemCode',
         message: '[Craft] Choose item to craft:',
-        choices: items.map(item => item.code),
+        choices: items,
       },
     ]);
 
@@ -239,7 +240,7 @@ async function craftChoice() {
 
     await character.craftItem(itemCode, quantity);
   } catch (error) {
-    console.log('');
+    console.log(error);
   }
 }
 
@@ -270,7 +271,8 @@ async function gatherChoice() {
       await character.gather();
     }
   } catch (error) {
-    console.log('');
+    if (error === 'EVENT_INTERRUPTED') return;
+    console.log(error);
   }
 }
 
@@ -296,7 +298,8 @@ async function huntChoice() {
 
     await character.huntMonster(monsterCode, quantity);
   } catch (error) {
-    console.log('');
+    if (error === 'EVENT_INTERRUPTED') return;
+    console.log(error);
   }
 }
 
@@ -305,7 +308,8 @@ async function restChoice() {
     const character = await getCharacterName('Rest');
     await character.rest();
   } catch (error) {
-    console.log('');
+    if (error === 'EVENT_INTERRUPTED') return;
+    console.log(error);
   }
 }
 
@@ -333,7 +337,8 @@ async function recycleChoice() {
 
     await character.recycleItem(itemCode, quantity);
   } catch (error) {
-    console.log('');
+    if (error === 'EVENT_INTERRUPTED') return;
+    console.log(error);
   }
 }
 
@@ -364,7 +369,8 @@ async function equipChoice() {
 
     await character.equip(itemCode, slot);
   } catch (error) {
-    console.log('');
+    if (error === 'EVENT_INTERRUPTED') return;
+    console.log(error);
   }
 }
 
@@ -386,7 +392,8 @@ async function unequipChoice() {
 
     await character.unequip(slot);
   } catch (error) {
-    console.log('');
+    if (error === 'EVENT_INTERRUPTED') return;
+    console.log(error);
   }
 }
 
@@ -395,7 +402,8 @@ async function depositChoice() {
     const character = await getCharacterName('Deposit');
     await character.depositInventoryIfFull(true);
   } catch (error) {
-    console.log('');
+    if (error === 'EVENT_INTERRUPTED') return;
+    console.log(error);
   }
 }
 
@@ -423,7 +431,8 @@ async function withdrawChoice() {
 
     await character.withdraw(itemCode, quantity);
   } catch (error) {
-    console.log('');
+    if (error === 'EVENT_INTERRUPTED') return;
+    console.log(error);
   }
 }
 
@@ -432,7 +441,8 @@ async function suitUpChoice() {
     const character = await getCharacterName('SuitUp');
     await character.equipBestGear();
   } catch (error) {
-    console.log('');
+    if (error === 'EVENT_INTERRUPTED') return;
+    console.log(error);
   }
 }
 
@@ -442,7 +452,7 @@ async function suitUpChoice() {
   for (const characterName of characterNames) {
     const character = new Character();
     await character.init(characterName);
-    characters.push(character);
+    characters.set(characterName, character);
   }
 
   let exit = false;
