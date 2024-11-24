@@ -14,6 +14,7 @@ import {
   XY,
   ItemSlot,
   SimpleItemSchema,
+  Skill,
 } from './client';
 import { World } from './world';
 import { fetchAPIResponse } from './network';
@@ -221,8 +222,12 @@ export class Character {
     }
   }
 
-  public async gatherEverything(highestPerSkill = true): Promise<void> {
+  public async gatherEverything(highestPerSkill = true, limitSkill?: Skill): Promise<void> {
     let allGatherableResources = World.getAllGatherableResources(this);
+
+    if (limitSkill) {
+      allGatherableResources = allGatherableResources.filter(val => val.skill === limitSkill);
+    }
 
     if (allGatherableResources.length === 0) {
       warn('No gatherable resources found');
@@ -525,7 +530,7 @@ export class Character {
     return World.monsters.filter(monster => this.canKill(monster));
   }
 
-  public getCraftableQuantity(itemCode: string, includeBankInventory = false, recursive = true): number {
+  public getCraftableQuantity(itemCode: string, includeBankInventory = false): number {
     const craftingSpec = World.getCraftingRecipe(itemCode);
     if (!craftingSpec) {
       warn(`Item ${itemCode} is not craftable`);

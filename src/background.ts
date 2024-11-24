@@ -9,7 +9,7 @@ async function run() {
 
   const characters: Character[] = [];
 
-  for (const characterName of process.env.CHARACTERS.split(',')) {
+  for (const characterName of process.env.BACKGROUND_CHARACTERS.split(',')) {
     const character = new Character();
     characters.push(character);
     await character.init(characterName);
@@ -20,7 +20,7 @@ async function run() {
   promises = characters.map(async (character, index) => {
     while (true) {
       await character.depositInventoryIfFull(true);
-      await character.huntEverything(true);
+      await character.gatherEverything(true, 'mining');
     }
   });
 
