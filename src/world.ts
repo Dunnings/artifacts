@@ -1,6 +1,6 @@
 import { Character } from './character';
 import { ItemSchema, MapSchema, MonsterSchema, ResourceSchema, SimpleItemSchema, CraftSchema, XY, BankSchema } from './client';
-import { fetchBank, fetchBankItems, fetchItems, fetchMaps, fetchMonsters, fetchResources } from './network';
+import { fetchBank, fetchBankItems, fetchGE, fetchItems, fetchMaps, fetchMonsters, fetchResources } from './network';
 import { warn } from './util';
 
 export class World {
@@ -84,5 +84,45 @@ export class World {
     const nearestMap = this.getNearestMap(resource, character);
     if (!nearestMap) return;
     return { x: nearestMap.x, y: nearestMap.y };
+  }
+
+  public static async getPrice(itemCode: string): Promise<number> {
+    const item = this.allItems.find(val => val.code === itemCode);
+    if (!item) {
+      warn(`Item ${itemCode} not found`);
+      return;
+    }
+    const response = await fetchGE(itemCode);
+    response.sort((a, b) => a.price - b.price);
+    return response[0].price;
+  }
+
+  public static async getItemDescription(itemCode: string, character: Character, includePrice = false): string {
+    let result = '';
+    const item = this.allItems.find(val => val.code === itemCode);
+    if (!item) {
+      warn(`Item ${itemCode} not found`);
+      return;
+    }
+    const canCraft = character.canCraft(item.code);
+    if (canCraft) {
+      result += `🛠️ `;
+    }
+    const canEquip = character.canEquip(item.code);
+    const equipColor = canEquip ? '\x1b[32m' : '\x1b[31m'; // green or red
+    result += `${item.name} (${equipColor}lvl ${item.level}\x1b[0m)`;
+    if (item.craft) {
+      const hasSkillLevel = character.skillLevel(item.craft.skill) >= item.craft.level;
+      const levelColor = hasSkillLevel ? '\x1b[32m' : '\x1b[31m'; // green or red
+      result += ` - ${levelColor}${item.craft.skill} ${item.craft.level}\x1b[0m`;
+    }
+    if (item.effects?.length > 0) {
+      result += ' -';
+      result += item.effects.map(effect => ` ${effect.name}: ${effect.value}`).join(',');
+    }
+    if (includePrice) {
+      result += ` - ${await this.getPrice(itemCode)}g`;
+    }
+    return result;
   }
 }

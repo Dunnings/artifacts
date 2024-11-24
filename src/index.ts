@@ -169,22 +169,11 @@ async function itemsChoice() {
     const items = [];
 
     for (const item of World.allItems) {
-      let price: number = undefined;
-      const isCraftable = item.craft !== undefined;
       const canEquipLevel = character.canEquip(item.code);
-      const canCraftLevel = character.hasCraftingLevel(item.code);
-      const canCraft = isCraftable && character.canCraft(item.code, true);
-      if (canEquipLevel) {
-        const gePrices = await fetchGE(item.code);
-        gePrices.sort((a, b) => a.price - b.price);
-        price = gePrices.length > 0 ? gePrices[0].price : undefined;
-      }
+      const canCraft = character.canCraft(item.code, true);
       items.push({
-        isCraftable,
         canEquipLevel,
-        canCraftLevel,
         canCraft,
-        price,
         item,
       });
     }
@@ -193,20 +182,13 @@ async function itemsChoice() {
       if (a.canEquipLevel && !b.canEquipLevel) return -1;
       if (a.canCraft && !b.canCraft) return -1;
       if (!a.canCraft && b.canCraft) return 1;
-      if (a.canCraftLevel && !b.canCraftLevel) return -1;
       return 0;
     });
 
-    console.log(
-      items
-        .map(
-          item =>
-            `${item.item.code} - ${item.price ? `${item.price} ` : ''}${item.canCraftLevel ? chalk.green('✅ craftable') : chalk.red('❌ not craftable')} ${
-              item.canEquipLevel ? chalk.green('✅ level') : chalk.red('❌ level')
-            } ${item.canCraft ? chalk.green('✅ ingredients') : chalk.red('❌ ingredients')}`,
-        )
-        .join('\n'),
-    );
+    for (const item of items) {
+      const desc = await World.getItemDescription(item.item.code, character);
+      console.log(desc);
+    }
   } catch (error) {
     console.error(error);
     console.log(' ');
