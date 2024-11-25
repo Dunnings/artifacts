@@ -20,15 +20,18 @@ const characterPromises: Map<string, Promise<unknown>> = new Map();
 
 async function getCharacterName(): Promise<Array<Character>> {
   const availableCharacters = characterNames.filter(val => characterPromises.get(val) === undefined);
+
+  const all = `All (${availableCharacters.join(', ')})`;
+
   const { characterName } = await inquirer.prompt([
     {
       type: 'list',
       name: 'characterName',
       message: `Choose a character:`,
-      choices: ['ALL', ...availableCharacters],
+      choices: [all, ...availableCharacters],
     },
   ]);
-  if (characterName === 'ALL') {
+  if (characterName === all) {
     return availableCharacters.map(val => characterMap.get(val));
   }
   return [characterMap.get(characterName)];

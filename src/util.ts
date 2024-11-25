@@ -11,9 +11,12 @@ export async function catchPromise<T>(promise: Promise<any>): Promise<[T, any]> 
   }
 }
 
+const shouldLog = false;
+
 const logFilePath = './action.log';
 
 function writeLog(text: string) {
+  if (!shouldLog) return;
   fs.appendFileSync(logFilePath, `${text}\n`);
 }
 
