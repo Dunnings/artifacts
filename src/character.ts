@@ -433,7 +433,9 @@ export class Character {
   }
 
   public hasCraftingIngredients(itemCode: string, quantity = 1, includeBank = true, recursive = true, itemDatabase?: Map<string, number>): boolean {
+    let isFirstCall = false;
     if (!itemDatabase) {
+      isFirstCall = true;
       itemDatabase = new Map();
       this.inventory.forEach(item => itemDatabase.set(item.code, item.quantity));
       if (includeBank) {
@@ -455,7 +457,7 @@ export class Character {
     }
 
     // if it's a crafted item and we have enough of it, return true
-    if (databaseQuantity >= quantity) {
+    if (!isFirstCall && databaseQuantity >= quantity) {
       itemDatabase.set(itemCode, databaseQuantity - quantity);
       return true;
     }

@@ -5,7 +5,8 @@ import { config } from 'dotenv';
 import { CharacterSchema, ItemSlot } from './client';
 import { Character } from './character';
 import { World } from './world';
-import { fetchGE } from './network';
+import * as fs from 'fs';
+import * as path from 'path';
 
 InterruptedPrompt.fromAll(inquirer);
 
@@ -13,23 +14,33 @@ config();
 
 const characterNames = process.env.CHARACTERS.split(',');
 
-const characters: Map<string, Character> = new Map();
+const characterMap: Map<string, Character> = new Map();
 
-async function getCharacterName(choice: string): Promise<Character> {
-  // if (characters.size === 1) return Object.values(characters)[0];
+const characterPromises: Map<string, Promise<unknown>> = new Map();
+
+async function getCharacterName(): Promise<Array<Character>> {
+  const availableCharacters = characterNames.filter(val => characterPromises.get(val) === undefined);
   const { characterName } = await inquirer.prompt([
     {
       type: 'list',
       name: 'characterName',
-      message: `[${choice}] Choose a character:`,
-      choices: characterNames,
+      message: `Choose a character:`,
+      choices: ['ALL', ...availableCharacters],
     },
   ]);
-  return characters.get(characterName);
+  if (characterName === 'ALL') {
+    return availableCharacters.map(val => characterMap.get(val));
+  }
+  return [characterMap.get(characterName)];
 }
 
 async function main(): Promise<boolean> {
   try {
+    const promises = [...characterPromises.values()];
+    if (!promises.some(val => val === undefined)) {
+      await Promise.race([...characterPromises.values()].filter(val => val !== undefined));
+    }
+    const characters = await getCharacterName();
     const { command } = await inquirer.prompt([
       {
         type: 'list',
@@ -41,43 +52,43 @@ async function main(): Promise<boolean> {
 
     switch (command) {
       case 'craft':
-        await craftChoice();
+        await craftChoice(characters);
         break;
       case 'deposit':
-        await depositChoice();
+        await depositChoice(characters);
         break;
       case 'equip':
-        await equipChoice();
+        await equipChoice(characters);
         break;
       case 'gather':
-        await gatherChoice();
+        await gatherChoice(characters);
         break;
       case 'hunt':
-        await huntChoice();
+        await huntChoice(characters);
         break;
       case 'inventory':
-        await inventoryChoice();
+        await inventoryChoice(characters);
         break;
       case 'items':
-        await itemsChoice();
+        await itemsChoice(characters);
         break;
       case 'monsters':
-        await monstersChoice();
+        await monstersChoice(characters);
         break;
       case 'recycle':
-        await recycleChoice();
+        await recycleChoice(characters);
         break;
       case 'rest':
-        await restChoice();
+        await restChoice(characters);
         break;
       case 'suitup':
-        await suitUpChoice();
+        await equipBestGearChoice(characters);
         break;
       case 'unequip':
-        await unequipChoice();
+        await unequipChoice(characters);
         break;
       case 'withdraw':
-        await withdrawChoice();
+        await withdrawChoice(characters);
         break;
       case 'exit':
         console.log('');
@@ -91,7 +102,7 @@ async function main(): Promise<boolean> {
   }
 }
 
-async function inventoryChoice() {
+async function inventoryChoice(characters: Array<Character>) {
   try {
     const { command } = await inquirer.prompt([
       {
@@ -102,49 +113,44 @@ async function inventoryChoice() {
       },
     ]);
 
-    let character: Character;
-    if (command === 'bank') {
-      character = await getCharacterName('Inventory');
-    }
-
-    switch (command) {
-      case 'player':
-        console.log(
-          World.allItems
-            .filter(item => character.itemQuantity(item.code) > 1)
-            .map(item => `${character.itemQuantity(item.code)}x ${item.code}`)
-            .join('\n'),
-        );
-        break;
-      case 'bank':
-        console.log(
-          World.bankItems
-            .filter(item => item.quantity > 1)
-            .map(item => `${item.quantity}x ${item.code}`)
-            .join('\n'),
-        );
-        break;
-      case 'all':
-        console.log(
-          World.allItems
-            .filter(item => character.itemQuantity(item.code, true) > 1)
-            .map(item => `${character.itemQuantity(item.code, true)}x ${item.code}`)
-            .join('\n'),
-        );
-        break;
+    for (const character of characters) {
+      switch (command) {
+        case 'player':
+          console.log(
+            World.allItems
+              .filter(item => character.itemQuantity(item.code) > 1)
+              .map(item => `${character.itemQuantity(item.code)}x ${item.code}`)
+              .join('\n'),
+          );
+          break;
+        case 'bank':
+          console.log(
+            World.bankItems
+              .filter(item => item.quantity > 1)
+              .map(item => `${item.quantity}x ${item.code}`)
+              .join('\n'),
+          );
+          break;
+        case 'all':
+          console.log(
+            World.allItems
+              .filter(item => character.itemQuantity(item.code, true) > 1)
+              .map(item => `${character.itemQuantity(item.code, true)}x ${item.code}`)
+              .join('\n'),
+          );
+          break;
+      }
     }
   } catch (e) {
     console.log('');
   }
 }
 
-async function monstersChoice() {
+async function monstersChoice(characters: Array<Character>) {
   try {
-    const character = await getCharacterName('Monster');
-
     const monsters = World.monsters.map(monster => {
       return {
-        canKill: character.canKill(monster),
+        canKill: characters.map(char => char.canKill(monster)),
         monster,
       };
     });
@@ -162,15 +168,13 @@ async function monstersChoice() {
   }
 }
 
-async function itemsChoice() {
+async function itemsChoice(characters: Array<Character>) {
   try {
-    const character = await getCharacterName('Items');
-
     const items = [];
 
     for (const item of World.allItems) {
-      const canEquipLevel = character.canEquip(item.code);
-      const canCraft = character.canCraft(item.code, true);
+      const canEquipLevel = characters.every(character => character.canEquip(item.code));
+      const canCraft = characters.every(character => character.canCraft(item.code, true));
       items.push({
         canEquipLevel,
         canCraft,
@@ -186,7 +190,7 @@ async function itemsChoice() {
     });
 
     for (const item of items) {
-      const desc = await World.getItemDescription(item.item.code, character);
+      const desc = await World.getItemDescription(item.item.code, characters);
       console.log(desc);
     }
   } catch (error) {
@@ -195,10 +199,9 @@ async function itemsChoice() {
   }
 }
 
-async function craftChoice() {
+async function craftChoice(characters: Array<Character>) {
   try {
-    const character = await getCharacterName('Craft');
-    const items = character.getCraftableItems(true);
+    const items = [...new Set(...characters.map(character => character.getCraftableItems(true)))];
 
     const { itemCode } = await inquirer.prompt([
       {
@@ -209,7 +212,7 @@ async function craftChoice() {
       },
     ]);
 
-    const maxQuantity = character.getCraftableQuantity(itemCode, true);
+    const maxQuantity = Math.floor(Math.max(...characters.map(character => character.getCraftableQuantity(itemCode, true))) / characters.length);
 
     const { quantity } = await inquirer.prompt([
       {
@@ -217,40 +220,62 @@ async function craftChoice() {
         name: 'quantity',
         message: `[Craft] Quantity (max ${maxQuantity}):`,
         default: 1,
+        validate: val => {
+          if (val > maxQuantity) {
+            return `Quantity must be less than or equal to ${maxQuantity}`;
+          }
+          if (val < 0) {
+            return 'Quantity must be greater than 0';
+          }
+          return true;
+        },
       },
     ]);
 
-    await character.craftItem(itemCode, quantity);
+    for (const character of characters) {
+      const promise = character.craftItem(itemCode, quantity).then(() => characterPromises.set(character.name, undefined));
+      characterPromises.set(character.name, promise);
+    }
   } catch (error) {
     console.log(error);
   }
 }
 
-async function gatherChoice() {
+async function gatherChoice(characters: Array<Character>) {
   try {
-    const character = await getCharacterName('Gather');
-    const resources = World.getAllGatherableResources(character);
+    const resources = [...new Set(...characters.map(character => World.getAllGatherableResources(character).map(resource => resource.code)))];
 
     const { resourceCode, quantity } = await inquirer.prompt([
       {
         type: 'list',
         name: 'resourceCode',
         message: '[Gather] Choose resource to gather:',
-        choices: resources.map(resource => resource.code),
+        choices: resources,
       },
       {
         type: 'number',
         name: 'quantity',
         message: '[Gather] Quantity:',
         default: 1,
+        validate: val => {
+          if (val < 0) {
+            return 'Quantity must be greater than 0';
+          }
+          return true;
+        },
       },
     ]);
 
-    await character.depositInventoryIfFull(true);
-    for (let i = 0; i < quantity; i++) {
-      await character.depositInventoryIfFull();
-      await character.move(World.getNearestMapLocation(resourceCode, character));
-      await character.gather();
+    for (const character of characters) {
+      const promise = new Promise(async () => {
+        await character.depositInventoryIfFull(true);
+        for (let i = 0; i < quantity; i++) {
+          await character.depositInventoryIfFull();
+          await character.move(World.getNearestMapLocation(resourceCode, character));
+          await character.gather();
+        }
+      }).then(() => characterPromises.set(character.name, undefined));
+      characterPromises.set(character.name, promise);
     }
   } catch (error) {
     if (error === 'EVENT_INTERRUPTED') return;
@@ -258,141 +283,176 @@ async function gatherChoice() {
   }
 }
 
-async function huntChoice() {
+async function huntChoice(characters: Array<Character>) {
   try {
-    const character = await getCharacterName('Hunt');
-    const monsters = character.getHuntableMonsters();
+    const monsters = [...new Set(...characters.map(character => character.getHuntableMonsters()))];
 
     const { monsterCode, quantity } = await inquirer.prompt([
       {
         type: 'list',
         name: 'monsterCode',
         message: '[Hunt] Choose a monster to hunt:',
-        choices: monsters.map(monster => monster.code),
+        choices: monsters,
       },
       {
         type: 'number',
         name: 'quantity',
         message: '[Hunt] Quantity:',
         default: 1,
+        validate: val => {
+          if (val < 0) {
+            return 'Quantity must be greater than 0';
+          }
+          return true;
+        },
       },
     ]);
 
-    await character.huntMonster(monsterCode, quantity);
+    for (const character of characters) {
+      const promise = character.huntMonster(monsterCode, quantity).then(() => characterPromises.set(character.name, undefined));
+      characterPromises.set(character.name, promise);
+    }
   } catch (error) {
     if (error === 'EVENT_INTERRUPTED') return;
     console.log(error);
   }
 }
 
-async function restChoice() {
+async function restChoice(characters: Array<Character>) {
   try {
-    const character = await getCharacterName('Rest');
-    await character.rest();
+    for (const character of characters) {
+      const promise = character.rest().then(() => characterPromises.set(character.name, undefined));
+      characterPromises.set(character.name, promise);
+    }
   } catch (error) {
     if (error === 'EVENT_INTERRUPTED') return;
     console.log(error);
   }
 }
 
-async function recycleChoice() {
+async function recycleChoice(characters: Array<Character>) {
   try {
-    const character = await getCharacterName('Recycle');
+    const items = [...new Set(...characters.map(character => character.inventory.filter(item => item.quantity > 0).map(item => item.code)))];
 
     const { itemCode } = await inquirer.prompt([
       {
         type: 'list',
         name: 'itemCode',
         message: '[Recycle] Choose an item to recycle:',
-        choices: character.inventory.map(item => item.code),
+        choices: items,
       },
     ]);
+
+    const minQuantity = Math.min(...characters.map(character => character.inventory.find(val => val.code === itemCode).quantity));
 
     const { quantity } = await inquirer.prompt([
       {
         type: 'number',
         name: 'quantity',
-        message: `[Recycle] Quantity (max ${character.inventory.find(val => val.code === itemCode).quantity}):`,
+        message: `[Recycle] Quantity (max ${minQuantity}):`,
         default: 1,
+        validate: val => {
+          if (val > minQuantity) {
+            return `Quantity must be less than or equal to ${minQuantity}`;
+          }
+          if (val < 0) {
+            return 'Quantity must be greater than 0';
+          }
+          return true;
+        },
       },
     ]);
 
-    await character.recycleItem(itemCode, quantity);
+    for (const character of characters) {
+      const promise = character.recycleItem(itemCode, quantity).then(() => characterPromises.set(character.name, undefined));
+      characterPromises.set(character.name, promise);
+    }
   } catch (error) {
     if (error === 'EVENT_INTERRUPTED') return;
     console.log(error);
   }
 }
 
-async function equipChoice() {
+async function equipChoice(characters: Array<Character>) {
   try {
-    const character = await getCharacterName('Equip');
+    const options = [...new Set(...characters.map(character => character.inventory.filter(item => item.quantity > 0).map(item => item.code)))];
 
     const { itemCode, slot } = await inquirer.prompt([
       {
         type: 'list',
         name: 'itemCode',
         message: '[Equip] Choose an item to equip:',
-        choices: character.inventory.map(item => item.code),
+        choices: options,
       },
       {
         type: 'list',
         name: 'slot',
         message: '[Equip] Choose a slot:',
-        choices: Object.keys(character.characterData)
+        choices: Object.keys(characters[0].characterData)
           .filter(key => key.endsWith('_slot'))
           .map(val => val.replace('_slot', '') as ItemSlot),
       },
     ]);
 
-    if (character.characterData[(slot + '_slot') as keyof CharacterSchema] !== '') {
-      await character.unequip(slot);
-    }
+    for (const character of characters) {
+      if (character.characterData[(slot + '_slot') as keyof CharacterSchema] !== '') {
+        await character.unequip(slot);
+      }
 
-    await character.equip(itemCode, slot);
+      const promise = character.equip(itemCode, slot).then(() => characterPromises.set(character.name, undefined));
+      characterPromises.set(character.name, promise);
+    }
   } catch (error) {
     if (error === 'EVENT_INTERRUPTED') return;
     console.log(error);
   }
 }
 
-async function unequipChoice() {
+async function unequipChoice(characters: Array<Character>) {
   try {
-    const character = await getCharacterName('Unequip');
+    const choices = [
+      ...new Set(
+        ...characters.map(character =>
+          Object.keys(character.characterData)
+            .filter(key => key.endsWith('_slot'))
+            .filter(key => character.characterData[key as keyof CharacterSchema] !== '')
+            .map(key => key.replace('_slot', '') as ItemSlot),
+        ),
+      ),
+    ];
 
     const { slot } = await inquirer.prompt([
       {
         type: 'list',
         name: 'slot',
         message: '[Unequip] Choose a slot:',
-        choices: Object.keys(character.characterData)
-          .filter(key => key.endsWith('_slot'))
-          .filter(key => character.characterData[key as keyof CharacterSchema] !== '')
-          .map(key => key.replace('_slot', '') as ItemSlot),
+        choices,
       },
     ]);
 
-    await character.unequip(slot);
+    for (const character of characters) {
+      await character.unequip(slot);
+    }
   } catch (error) {
     if (error === 'EVENT_INTERRUPTED') return;
     console.log(error);
   }
 }
 
-async function depositChoice() {
+async function depositChoice(characters: Array<Character>) {
   try {
-    const character = await getCharacterName('Deposit');
-    await character.depositInventoryIfFull(true);
+    for (const character of characters) {
+      const promise = character.depositInventoryIfFull(true).then(() => characterPromises.set(character.name, undefined));
+      characterPromises.set(character.name, promise);
+    }
   } catch (error) {
     if (error === 'EVENT_INTERRUPTED') return;
     console.log(error);
   }
 }
 
-async function withdrawChoice() {
+async function withdrawChoice(characters: Array<Character>) {
   try {
-    const character = await getCharacterName('Withdraw');
-
     const { itemCode } = await inquirer.prompt([
       {
         type: 'list',
@@ -402,26 +462,42 @@ async function withdrawChoice() {
       },
     ]);
 
+    const minQuantity = Math.min(World.bankItems.find(val => val.code === itemCode).quantity, Math.min(...characters.map(character => character.inventorySlotsRemaining())));
+
     const { quantity } = await inquirer.prompt([
       {
         type: 'number',
         name: 'quantity',
-        message: `[Withdraw] Quantity (max ${Math.min(World.bankItems.find(val => val.code === itemCode).quantity, character.inventorySlotsRemaining())}):`,
+        message: `[Withdraw] Quantity (max ${minQuantity}):`,
         default: 1,
+        validate: val => {
+          if (val > minQuantity) {
+            return `Quantity must be less than or equal to ${minQuantity}`;
+          }
+          if (val < 0) {
+            return 'Quantity must be greater than 0';
+          }
+          return true;
+        },
       },
     ]);
 
-    await character.withdraw(itemCode, quantity);
+    for (const character of characters) {
+      const promise = character.withdraw(itemCode, quantity).then(() => characterPromises.set(character.name, undefined));
+      characterPromises.set(character.name, promise);
+    }
   } catch (error) {
     if (error === 'EVENT_INTERRUPTED') return;
     console.log(error);
   }
 }
 
-async function suitUpChoice() {
+async function equipBestGearChoice(characters: Array<Character>) {
   try {
-    const character = await getCharacterName('SuitUp');
-    await character.equipBestGear();
+    for (const character of characters) {
+      const promise = character.equipBestGear().then(() => characterPromises.set(character.name, undefined));
+      characterPromises.set(character.name, promise);
+    }
   } catch (error) {
     if (error === 'EVENT_INTERRUPTED') return;
     console.log(error);
@@ -429,13 +505,24 @@ async function suitUpChoice() {
 }
 
 (async () => {
+  const logFilePath = './action.log';
+  fs.writeFileSync(logFilePath, '', 'utf-8');
+
   await World.init();
 
-  for (const characterName of characterNames) {
-    const character = new Character();
-    await character.init(characterName);
-    characters.set(characterName, character);
-  }
+  await Promise.all(
+    characterNames.map(async characterName => {
+      const character = new Character();
+      await character.init(characterName);
+      characterMap.set(characterName, character);
+      characterPromises.set(
+        characterName,
+        character.wait().then(() => {
+          characterPromises.set(characterName, undefined);
+        }),
+      );
+    }),
+  );
 
   let exit = false;
   while (!exit) {

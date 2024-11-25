@@ -97,22 +97,22 @@ export class World {
     return response[0].price;
   }
 
-  public static async getItemDescription(itemCode: string, character: Character, includePrice = false): string {
+  public static async getItemDescription(itemCode: string, characters: Array<Character>, includePrice = false): Promise<string> {
     let result = '';
     const item = this.allItems.find(val => val.code === itemCode);
     if (!item) {
       warn(`Item ${itemCode} not found`);
       return;
     }
-    const canCraft = character.canCraft(item.code);
+    const canCraft = characters.every(character => character.canCraft(item.code));
     if (canCraft) {
       result += `🛠️ `;
     }
-    const canEquip = character.canEquip(item.code);
+    const canEquip = characters.every(character => character.canEquip(item.code));
     const equipColor = canEquip ? '\x1b[32m' : '\x1b[31m'; // green or red
     result += `${item.name} (${equipColor}lvl ${item.level}\x1b[0m)`;
     if (item.craft) {
-      const hasSkillLevel = character.skillLevel(item.craft.skill) >= item.craft.level;
+      const hasSkillLevel = characters.every(character => character.skillLevel(item.craft.skill) >= item.craft.level);
       const levelColor = hasSkillLevel ? '\x1b[32m' : '\x1b[31m'; // green or red
       result += ` - ${levelColor}${item.craft.skill} ${item.craft.level}\x1b[0m`;
     }
