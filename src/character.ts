@@ -422,14 +422,9 @@ export class Character {
 
   public hasCraftingLevel(itemCode: string): boolean {
     const craftingSpec = World.getCraftingRecipe(itemCode);
-
-    if (!craftingSpec) return;
-
     if (craftingSpec?.items) {
-      return craftingSpec.items.every(item => this.hasCraftingLevel(item.code) !== false);
+      return this.skillLevel(craftingSpec.skill) >= craftingSpec.level && craftingSpec.items.every(item => this.hasCraftingLevel(item.code) !== false);
     }
-
-    return this.skillLevel(craftingSpec.skill) >= craftingSpec.level;
   }
 
   public hasCraftingIngredients(itemCode: string, quantity = 1, includeBank = true, recursive = true, itemDatabase?: Map<string, number>): boolean {
