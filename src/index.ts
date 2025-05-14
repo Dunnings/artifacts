@@ -6,7 +6,6 @@ import { CharacterSchema, ItemSlot } from './client';
 import { Character } from './character';
 import { World } from './world';
 import * as fs from 'fs';
-import * as path from 'path';
 
 InterruptedPrompt.fromAll(inquirer);
 
